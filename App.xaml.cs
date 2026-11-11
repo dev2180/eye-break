@@ -137,7 +137,7 @@ public partial class App : Application
 
     async Task<string> BuildInfiniteOptions()
     {
-        var (quotes, credit) = await Infinite.GetQuotesAsync();
+        var (quotes, credit) = await Infinite.GetQuotesAsync(Settings.Quotes);
         var (stations, station) = Infinite.StationsFor(Settings);
         return System.Text.Json.JsonSerializer.Serialize(new { stations, station, quotes, credit });
     }
@@ -158,6 +158,12 @@ public partial class App : Application
         Settings.Save();
         if (intervalChanged) _nextBreak = DateTime.Now + Interval;
         UpdateTrayText();
+    }
+
+    public void SetQuotes(string source)
+    {
+        Settings.Quotes = source;
+        Settings.Save();
     }
 
     public void SetHideFromShare(bool hide)

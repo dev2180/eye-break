@@ -62,11 +62,25 @@ public static class Infinite
 
     static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(5) };
 
-    /// <summary>The calm quotes shown in infinite mode, from our own hand-picked list.</summary>
-    public static async Task<(Quote[] quotes, string credit)> GetQuotesAsync()
+    /// <summary>
+    /// The quotes shown in infinite mode: our own hand-picked calm list, or (if chosen) a fresh batch from
+    /// ZenQuotes, keeping the calmer ones. Falls back to our list if ZenQuotes can't be reached.
+    /// </summary>
+    public static async Task<(Quote[] quotes, string credit)> GetQuotesAsync(string source)
     {
-        // Only our own hand-picked calm quotes: no online service, no credit line.
-        await Task.CompletedTask;
+        if (source != "zen") return (Fallback, "");
+        try
+        {
+            var json = await Http.GetStringAsync("https://zenquotes.io/api/quotes");
+            var all = JsonSerializer.Deserialize<Quote[]>(json)?
+                .Where(x => !string.IsNullOrWhiteSpace(x.q) && x.q.Length <= 180 && !x.q.Contains("Too many requests"))
+                .ToArray() ?? Array.Empty<Quote>();
+            var calm = all.Where(x => Calming.IsMatch(x.q)).ToArray();
+            var pick = calm.Length >= 8 ? calm : all;
+            if (pick.Length > 0)
+                return (pick, "Inspirational quotes provided by ZenQuotes API");   // ZenQuotes asks for this credit
+        }
+        catch (Exception ex) { GammaDimmer.Log("zenquotes failed: " + ex.Message); }
         return (Fallback, "");
     }
 

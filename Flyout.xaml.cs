@@ -22,6 +22,8 @@ public partial class Flyout : Window
         _loadingMusic = true;
         foreach (RadioButton r in MusicChips.Children)
             r.IsChecked = (string)r.Tag == app.Settings.Music;
+        foreach (RadioButton r in QuoteChips.Children)
+            r.IsChecked = (string)r.Tag == app.Settings.Quotes;
         _loadingMusic = false;
         LinkBox.Visibility = app.Settings.Music == "custom" ? Visibility.Visible : Visibility.Collapsed;
         _timer.Tick += (_, _) => Refresh();
@@ -121,6 +123,12 @@ public partial class Flyout : Window
         LinkError.Visibility = Visibility.Collapsed;
         _app.SetMusic(key);
         if (key == "custom") LinkBox.Focus();
+    }
+
+    void Quotes_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_loadingMusic) return;
+        _app.SetQuotes((string)((RadioButton)sender).Tag);
     }
 
     void LinkBox_KeyUp(object sender, System.Windows.Input.KeyEventArgs e) { if (e.Key == System.Windows.Input.Key.Enter) LinkBox_Changed(sender, e); }

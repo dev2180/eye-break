@@ -323,6 +323,11 @@
             </WrapPanel>
             <TextBox x:Name="LinkBox" Style="{StaticResource LinkBox}" Margin="0,2,0,10" Visibility="Collapsed" LostFocus="LinkBox_Changed" KeyUp="LinkBox_KeyUp"/>
             <TextBlock x:Name="LinkError" Foreground="#F09595" FontSize="11.5" Margin="2,-6,0,10" Visibility="Collapsed" Text="That doesn't look like a YouTube link"/>
+            <TextBlock Text="QUOTES" Style="{StaticResource SectionLabel}" Margin="0,6,0,8"/>
+            <WrapPanel x:Name="QuoteChips">
+                <RadioButton Style="{StaticResource RadioChip}" Content="Calm (built-in)" Tag="calm" Checked="Quotes_Checked"/>
+                <RadioButton Style="{StaticResource RadioChip}" Content="ZenQuotes" Tag="zen" Checked="Quotes_Checked"/>
+            </WrapPanel>
             <Button Style="{StaticResource OutlineButton}" Content="Enter infinite mode" Click="Infinite_Click" Margin="0,4,0,0"/>
             <TextBlock Text="Press Esc to return whenever you're ready" Foreground="{StaticResource Faint}" FontSize="11" HorizontalAlignment="Center" Margin="0,8,0,0"/>
 

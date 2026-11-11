@@ -11,6 +11,7 @@ public sealed class Settings
     public bool HideFromScreenShare { get; set; } = true;
     public string Music { get; set; } = "interstellar";   // a preset key, or "custom"
     public string CustomMusic { get; set; } = "";         // a YouTube link, used when Music is "custom"
+    public string Quotes { get; set; } = "calm";          // "calm" (our own list) or "zen" (ZenQuotes, online)
 
     static string FilePath => System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "EyeBreak", "settings.json");

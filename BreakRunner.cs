@@ -145,7 +145,7 @@ public sealed class BreakRunner
             // aura gathers around it and breathes, and the star flares. It only ever changes brightness, never size.
             async Task AuraIn() { await Task.Delay(1300); await Tween(t => _s.Aura = t, 1800, Sine); }
             var aura = AuraIn();
-            await Tween(t => _s.Star = t, 2200, Sine);
+            await Tween(t => { _s.Star = t; _s.Birth = t; }, 2600, t => t);
             await Tween(t => _s.Flash = t, 380, Sine);
             await Tween(t => _s.Flash = 1 - 0.65 * t, 1500, Sine);
             await aura;
@@ -199,7 +199,7 @@ public sealed class BreakRunner
     void Reset()
     {
         _s.Vertical = false; _s.P = 0; _s.Len = 0; _s.Wid = 0; _s.Grow = 0; _s.Glow = 0;
-        _s.Star = 0; _s.Flash = 0; _s.Aura = 0; _s.MessageOpacity = 0; _s.Countdown = 0;
+        _s.Star = 0; _s.Flash = 0; _s.Aura = 0; _s.Birth = 0; _s.MessageOpacity = 0; _s.Countdown = 0;
     }
 
     readonly Stopwatch _clock = Stopwatch.StartNew();

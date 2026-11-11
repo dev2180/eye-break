@@ -20,6 +20,7 @@ public sealed class EyeState
     public double Star;            // the white star at the centre 0..1
     public double Flash;           // the star's flare (a wide bloom) 0..1
     public double Aura;            // the pulsing lingam-shaped aura around the star 0..1
+    public double Birth;           // the star's birth: 0 = a single dot of light, 1 = its full light spread out
     public double Time;            // seconds, drives the aura's breathing
     public double MessageOpacity;  // fallback countdown, only if the black hole can't run
     public int Countdown;
@@ -36,7 +37,7 @@ public sealed class OverlayWindow : Window
     readonly Path _lid, _rim, _gold;
     readonly Grid _starLayer = new() { IsHitTestVisible = false };
     readonly Image _bloom = Sprite(), _aura = Sprite(), _ripple1 = Sprite(), _ripple2 = Sprite(), _glow = Sprite(), _core = Sprite();
-    readonly ScaleTransform _auraScale = new(1, 1), _r1Scale = new(1, 1), _r2Scale = new(1, 1);
+    readonly ScaleTransform _auraScale = new(1, 1), _r1Scale = new(1, 1), _r2Scale = new(1, 1), _coreScale = new(0.02, 0.02), _glowScale = new(0.02, 0.02);
     readonly TaskCompletionSource _art = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>Completes once the star and aura images for this monitor are rendered.</summary>
@@ -83,6 +84,8 @@ public sealed class OverlayWindow : Window
         _aura.RenderTransform = _auraScale;
         _ripple1.RenderTransform = _r1Scale;
         _ripple2.RenderTransform = _r2Scale;
+        _core.RenderTransform = _coreScale;
+        _glow.RenderTransform = _glowScale;
 
         _count = new TextBlock { FontSize = 64, FontWeight = FontWeights.Light, HorizontalAlignment = HorizontalAlignment.Center };
         _msg = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Opacity = 0, IsHitTestVisible = false };
@@ -216,8 +219,13 @@ public sealed class OverlayWindow : Window
         // It breathes with the aura: a slow inhale/exhale of about 3.4 s.
         const double Breath = 3.4;
         double br = Math.Sin(2 * Math.PI * s.Time / Breath);
-        _core.Opacity = Math.Clamp(s.Star * 1.6, 0, 1);
-        _glow.Opacity = Math.Clamp((s.Star - 0.2) / 0.8, 0, 1) * (0.86 + 0.14 * br * s.Aura);
+        // Born from a single dot: the light starts as one bright point and spreads outward to its full reach.
+        // Once born, the size stays fixed and only the brightness changes.
+        double born = 1 - Math.Pow(1 - Math.Clamp(s.Birth, 0, 1), 3);
+        _coreScale.ScaleX = _coreScale.ScaleY = 0.02 + 0.98 * born;
+        _glowScale.ScaleX = _glowScale.ScaleY = 0.02 + 0.98 * Math.Pow(born, 1.4);
+        _core.Opacity = Math.Clamp(s.Star * 4, 0, 1);
+        _glow.Opacity = Math.Clamp((s.Star - 0.15) / 0.85, 0, 1) * (0.86 + 0.14 * br * s.Aura);
         _bloom.Opacity = Math.Clamp(s.Flash, 0, 1) * (0.9 + 0.1 * br);
 
         // The lingam aura swells and settles with each breath, and a shell of light ripples outwards from it.

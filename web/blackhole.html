@@ -71,6 +71,12 @@ body.pointer{cursor:default}
 #results .r .t div{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #results .r .t small{display:block;font-size:11.5px;color:rgba(246,239,228,.5);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #results .r .d{font-size:11.5px;color:rgba(255,214,160,.7);font-variant-numeric:tabular-nums}
+#results .h{padding:12px 12px 4px;font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:rgba(255,214,160,.7);font-weight:600}
+#results .r.cur .t div{color:#ffd9a0}
+#results .r .x{all:unset;cursor:pointer;width:28px;height:28px;border-radius:9px;display:grid;place-items:center;flex:none;
+  font-size:17px;line-height:1;color:rgba(255,214,160,.8)}
+#results .r .x:hover{background:rgba(240,179,92,.2);color:#ffd9a0}
+#bar2 button.on{color:#ffd9a0}
 #results .msg{padding:14px;font-size:13px;color:rgba(246,239,228,.55);text-align:center}
 #player{position:fixed;left:-400px;top:0;width:200px;height:120px;opacity:0;pointer-events:none}
 #err{position:fixed;inset:0;display:none;align-items:center;justify-content:center;color:#f09595;font-size:15px}
@@ -94,11 +100,13 @@ body.pointer{cursor:default}
 <div id="credit"></div>
 <div id="player"></div>
 <div id="bar2">
-  <button id="bPrev" title="Previous music"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9.5 12z"/></svg></button>
+  <button id="bPrev" title="Previous song"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9.5 12z"/></svg></button>
   <button id="bPlay" title="Pause"><svg viewBox="0 0 24 24"><path id="playIcon" d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></button>
-  <button id="bNext" title="Next music"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l10.5-7z"/></svg></button>
+  <button id="bNext" title="Next song"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l10.5-7z"/></svg></button>
   <div class="now"><b id="nowStation">Interstellar</b><span id="nowTitle">Loading…</span></div>
   <div class="sep"></div>
+  <button id="bMode" title="Plays the next song when one ends"><svg viewBox="0 0 24 24"><path id="modeIcon" d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg></button>
+  <button id="bLib" title="Stations and my playlist"><svg viewBox="0 0 24 24"><path d="M3 6h12v2H3zm0 5h12v2H3zm0 5h8v2H3zm14-10h4v2h-2v8.5a2.5 2.5 0 1 1-2-2.45z"/></svg></button>
   <button id="bSearch" title="Search music"><svg viewBox="0 0 24 24"><path d="M10 3a7 7 0 0 1 5.6 11.2l4.6 4.6-1.4 1.4-4.6-4.6A7 7 0 1 1 10 3zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/></svg></button>
 </div>
 <div id="search">
@@ -550,7 +558,14 @@ function nextQuote(){
 
 // ---------- music: a hidden YouTube player, organised into stations ----------
 // stations: [{name, music:[{id}|{list}]}]. Each station lists backups; if a video can't be embedded, the next is tried.
-let player=null,ytReady=null,stations=[],st=0,musicIds=[],musicIdx=0,musicVol=0,paused=false,current=null;
+// The music never stops: when a song ends, the next one in the station plays (round and round), or, in
+// "repeat one" mode, the same song starts again. Songs that can't be embedded are skipped.
+let player=null,ytReady=null,stations=[],st=0,musicIds=[],musicIdx=0,musicVol=0,paused=false,current=null,errs=0;
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+             set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let mode=store.get('eb.mode','all');          // 'all' = next song when one ends, 'one' = repeat this song
+let mine=store.get('eb.playlist',[]);         // my playlist: [{id,title,channel,duration}]
+const MINE='My playlist';
 const nowStation=document.getElementById('nowStation'),nowTitle=document.getElementById('nowTitle'),playIcon=document.getElementById('playIcon');
 function loadYouTube(){
   if(ytReady)return ytReady;
@@ -564,8 +579,8 @@ async function playStation(i){
   nowStation.textContent=stations[st].name;
   await playItems(stations[st].music);
 }
-async function playItems(items){
-  musicIds=items||[];musicIdx=0;
+async function playItems(items,start=0){
+  musicIds=items||[];musicIdx=Math.max(0,Math.min(start,musicIds.length-1));errs=0;
   if(!musicIds.length){stopPlayer();nowTitle.textContent='Silence';return}
   nowTitle.textContent='Loading…';
   try{await Promise.race([loadYouTube(),wait(8000)])}catch(e){}
@@ -576,22 +591,57 @@ async function playItems(items){
 try{if('mediaSession' in navigator)setInterval(()=>{try{navigator.mediaSession.metadata=null}catch(e){}},2000)}catch(e){}
 function stopPlayer(){if(player){try{player.destroy()}catch(e){}player=null}}
 function playMusic(){
-  if(musicIdx>=musicIds.length){nowTitle.textContent="Couldn't play this one";post('music:none-playable');return}
+  if(!musicIds.length)return;
+  if(errs>=musicIds.length){nowTitle.textContent="Couldn't play these";post('music:none-playable');return}
+  musicIdx=(musicIdx+musicIds.length)%musicIds.length;
   const item=current=musicIds[musicIdx];
+  if(item.title)nowTitle.textContent=item.title;
+  // A single video changes in place: the player (and its volume) carries on, no silence while it rebuilds.
+  if(player&&item.id&&player.loadVideoById&&!player.__list){
+    try{player.loadVideoById(item.id);paused=false;setPlayIcon();post('music:playing '+item.id);return}catch(e){}
+  }
   const vars={autoplay:1,controls:0,disablekb:1,fs:0,modestbranding:1,playsinline:1,rel:0,iv_load_policy:3};
-  if(item.list){vars.listType='playlist';vars.list=item.list;vars.loop=1}else{vars.loop=1;vars.playlist=item.id}
+  if(item.list){vars.listType='playlist';vars.list=item.list;vars.loop=1}
   stopPlayer();
   document.getElementById('player').innerHTML='<div id="yt"></div>';
   player=new YT.Player('yt',{width:200,height:120,videoId:item.id||undefined,playerVars:vars,events:{
     onReady:e=>{e.target.setVolume(0);e.target.playVideo();musicVol=0;paused=false;setPlayIcon();fadeVolume(70,4000);
       post('music:playing '+(item.id||item.list))},
-    onError:e=>{post('music:error '+e.data+' '+(item.id||item.list));musicIdx++;playMusic()},
+    onError:e=>{post('music:error '+e.data+' '+((current&&(current.id||current.list))||''));errs++;musicIdx++;playMusic()},
     onStateChange:e=>{
-      if(e.data===1){try{nowTitle.textContent=e.target.getVideoData().title||nowTitle.textContent}catch(_){}}
-      if(e.data===0&&!item.list){e.target.seekTo(0);e.target.playVideo()}
+      if(e.data===1){errs=0;try{nowTitle.textContent=e.target.getVideoData().title||nowTitle.textContent}catch(_){}}
+      if(e.data===0)songEnded();
     }
   }});
+  player.__list=!!item.list;
 }
+// A song finished: repeat it, or go on to the next (a YouTube playlist goes on by itself, and starts over at its end).
+let lastEnd=0;
+function songEnded(){
+  if(!player||performance.now()-lastEnd<1500)return;
+  lastEnd=performance.now();
+  if(mode==='one'){try{player.seekTo(0,true);player.playVideo()}catch(e){}return}
+  if(current&&current.list){try{player.playVideoAt(0)}catch(e){}return}
+  musicIdx++;playMusic();
+}
+// Safety net: if the player ever sits ended or stopped without you pausing it, carry on.
+setInterval(()=>{
+  if(!player||paused||!player.getPlayerState)return;
+  let s;try{s=player.getPlayerState()}catch(e){return}
+  if(s===0)songEnded();
+  else if(s===5){try{player.playVideo()}catch(e){}}
+},3000);
+function skip(d){if(musicIds.length>1){errs=0;musicIdx+=d;playMusic()}else if(player){try{player.seekTo(0,true);player.playVideo()}catch(e){}}}
+function setMode(m){
+  mode=m;store.set('eb.mode',m);
+  const b=document.getElementById('bMode');
+  document.getElementById('modeIcon').setAttribute('d',m==='one'
+    ?'M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4zm-4-2V9h-1l-2 1v1h1.5v4H13z'
+    :'M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z');
+  b.title=m==='one'?'Repeats this song':'Plays the next song when one ends';
+  b.classList.toggle('on',m==='one');
+}
+setMode(mode);
 function fadeVolume(to,ms){
   const from=musicVol;
   return tw(t=>{musicVol=from+(to-from)*t;try{player&&player.setVolume(musicVol)}catch(e){}},ms,t=>t);
@@ -617,15 +667,55 @@ function showBar(){
   },3500);
 }
 addEventListener('mousemove',showBar);
-document.getElementById('bPrev').onclick=()=>{playStation(st-1);showBar()};
-document.getElementById('bNext').onclick=()=>{playStation(st+1);showBar()};
+document.getElementById('bPrev').onclick=()=>{skip(-1);showBar()};
+document.getElementById('bNext').onclick=()=>{skip(1);showBar()};
 document.getElementById('bPlay').onclick=()=>{togglePause();showBar()};
-document.getElementById('bSearch').onclick=()=>{
-  const open=!searchEl.classList.contains('on');
+document.getElementById('bMode').onclick=()=>{setMode(mode==='one'?'all':'one');showBar()};
+// One panel, two views: search, or the library (stations + my playlist).
+let panel='';
+function openPanel(which){
+  const open=!(searchEl.classList.contains('on')&&panel===which);
+  panel=open?which:'';
   searchEl.classList.toggle('on',open);
-  if(open){sInput.value='';resultsEl.innerHTML='<div class="msg">Try “Hans Zimmer Time”, “lofi rain” or “Tibetan bowls”</div>';setTimeout(()=>sInput.focus(),50)}
+  document.getElementById('sForm').style.display=which==='search'?'':'none';
+  if(open&&which==='search'){sInput.value='';resultsEl.innerHTML='<div class="msg">Try “Hans Zimmer Time”, “lofi rain” or “Tibetan bowls”</div>';setTimeout(()=>sInput.focus(),50)}
+  if(open&&which==='lib')showLibrary();
   showBar();
-};
+}
+document.getElementById('bSearch').onclick=()=>openPanel('search');
+document.getElementById('bLib').onclick=()=>openPanel('lib');
+
+function showLibrary(){
+  const rows=[];
+  rows.push('<div class="h">Stations</div>');
+  stations.forEach((s,i)=>{if(s.name!==MINE)rows.push(`<div class="r${i===st?' cur':''}" data-st="${i}"><div class="t"><div>${esc(s.name)}</div><small>${s.music.length?s.music.length+' songs, one after another':'No music'}</small></div></div>`)});
+  rows.push(`<div class="h">${MINE}</div>`);
+  if(!mine.length)rows.push('<div class="msg">Search for music and press + to add songs here.</div>');
+  mine.forEach((m,i)=>rows.push(`<div class="r${stations[st]&&stations[st].name===MINE&&musicIdx===i?' cur':''}" data-mine="${i}"><div class="t"><div>${esc(m.title)}</div><small>${esc(m.channel||'')}</small></div><div class="d">${esc(m.duration||'')}</div><button class="x" data-del="${i}" title="Remove">×</button></div>`));
+  resultsEl.innerHTML=rows.join('');
+  resultsEl.querySelectorAll('[data-st]').forEach(el=>el.onclick=()=>{playStation(+el.dataset.st);showLibrary()});
+  resultsEl.querySelectorAll('[data-mine]').forEach(el=>el.onclick=e=>{
+    if(e.target.dataset.del!=null)return;
+    playMine(+el.dataset.mine);showLibrary();
+  });
+  resultsEl.querySelectorAll('[data-del]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    mine.splice(+b.dataset.del,1);saveMine();showLibrary();
+  });
+}
+function saveMine(){
+  store.set('eb.playlist',mine);
+  const i=stations.findIndex(s=>s.name===MINE);
+  const music=mine.map(m=>({id:m.id,title:m.title}));
+  if(i>=0)stations[i].music=music;
+  else if(mine.length)stations.push({name:MINE,music});
+}
+function playMine(i){
+  saveMine();
+  st=stations.findIndex(s=>s.name===MINE);
+  nowStation.textContent=MINE;
+  playItems(stations[st].music,i);
+}
 
 // ---------- search: the app looks up YouTube and sends back plain text results (no thumbnails) ----------
 document.getElementById('sForm').onsubmit=e=>{
@@ -637,12 +727,22 @@ document.getElementById('sForm').onsubmit=e=>{
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function searchResults(list){
   if(!list||!list.length){resultsEl.innerHTML='<div class="msg">No results. Try other words.</div>';return}
-  resultsEl.innerHTML=list.map((r,i)=>`<div class="r" data-i="${i}"><div class="t"><div>${esc(r.title)}</div><small>${esc(r.channel||'')}</small></div><div class="d">${esc(r.duration||'')}</div></div>`).join('');
-  resultsEl.querySelectorAll('.r').forEach(el=>el.onclick=()=>{
-    const r=list[+el.dataset.i];
-    nowStation.textContent='Your search';nowTitle.textContent=r.title;
-    playItems([{id:r.id}]);
-    searchEl.classList.remove('on');showBar();
+  const has=id=>mine.some(m=>m.id===id);
+  resultsEl.innerHTML=list.map((r,i)=>`<div class="r" data-i="${i}"><div class="t"><div>${esc(r.title)}</div><small>${esc(r.channel||'')}</small></div><div class="d">${esc(r.duration||'')}</div><button class="x" data-add="${i}" title="${has(r.id)?'In my playlist':'Add to my playlist'}">${has(r.id)?'✓':'+'}</button></div>`).join('');
+  // Playing a result queues the results after it too, so the music carries on when that song ends.
+  resultsEl.querySelectorAll('.r').forEach(el=>el.onclick=e=>{
+    if(e.target.dataset.add!=null)return;
+    const i=+el.dataset.i;
+    nowStation.textContent='Your search';
+    playItems(list.map(r=>({id:r.id,title:r.title})),i);
+    searchEl.classList.remove('on');panel='';showBar();
+  });
+  resultsEl.querySelectorAll('[data-add]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    const r=list[+b.dataset.add];
+    if(has(r.id)){mine=mine.filter(m=>m.id!==r.id);b.textContent='+';b.title='Add to my playlist'}
+    else{mine.push({id:r.id,title:r.title,channel:r.channel,duration:r.duration});b.textContent='✓';b.title='In my playlist'}
+    saveMine();
   });
 }
 
@@ -660,6 +760,7 @@ async function infinite(opts){
   setTimeout(()=>{creditEl.classList.add('on')},3000);
   quoteTimer=setTimeout(nextQuote,3500);
   stations=opts.stations||[];
+  saveMine();   // adds "My playlist" as a station when it has songs
   playStation(opts.station||0);
 }
 
