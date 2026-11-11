@@ -1,0 +1,356 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Black hole</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:Segoe UI,sans-serif}
+canvas{display:block;width:100vw;height:100vh;cursor:grab}
+canvas:active{cursor:grabbing}
+#ui{position:fixed;left:16px;bottom:14px;color:#9a98a6;font-size:12px;line-height:1.7;user-select:none;text-shadow:0 0 6px #000}
+#ui select,#ui button{background:#15141a;color:#cfcdd8;border:1px solid #33313d;border-radius:6px;padding:2px 6px;font-size:12px}
+#timer{position:fixed;top:5.5vh;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:10px;opacity:0;transition:opacity 1.2s;pointer-events:none;
+  padding:10px 26px 14px;border-radius:18px;background:rgba(0,0,0,.32);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+#time{font-weight:200;font-size:clamp(28px,3.4vw,46px);letter-spacing:.12em;color:rgba(255,250,240,.92);text-shadow:0 0 24px #000,0 0 6px #000;font-variant-numeric:tabular-nums}
+#bar{width:clamp(120px,14vw,220px);height:1px;background:rgba(255,255,255,.18)}
+#bar i{display:block;height:100%;width:100%;background:rgba(255,236,200,.85);transform-origin:left}
+#err{position:fixed;inset:0;display:none;align-items:center;justify-content:center;color:#f09595;font-size:15px}
+</style></head><body>
+<canvas id="c"></canvas>
+<div id="timer"><div id="time">0:20</div><div id="bar"><i id="fill"></i></div></div>
+<div id="ui">
+  Drag to orbit · scroll to fly closer or further · double-click to reset<br>
+  Quality <select id="q"><option value="0.6">Fast</option><option value="0.85">High</option><option value="1" selected>Ultra</option></select>
+  <button id="auto">Auto orbit: on</button> <button id="sink">Sink in</button> <span id="fps"></span>
+</div>
+<div id="err">This browser can't run WebGL 2, which the black hole needs.</div>
+
+<script id="vs" type="x-shader">#version 300 es
+in vec2 a; out vec2 v;
+void main(){ v=a*.5+.5; gl_Position=vec4(a,0.,1.); }
+</script>
+
+<!-- 1. Ray tracer: follows light backwards from the camera through curved space-time -->
+<script id="scene" type="x-shader">#version 300 es
+precision highp float;
+in vec2 v; out vec4 o;
+uniform vec2 R; uniform float T; uniform vec3 camPos; uniform mat3 camRot; uniform float roll; uniform float fovK;
+
+float h13(vec3 p){p=fract(p*.1031);p+=dot(p,p.zyx+31.32);return fract((p.x+p.y)*p.z);}
+float n3(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.-2.*f);
+  return mix(mix(mix(h13(i),h13(i+vec3(1,0,0)),f.x),mix(h13(i+vec3(0,1,0)),h13(i+vec3(1,1,0)),f.x),f.y),
+             mix(mix(h13(i+vec3(0,0,1)),h13(i+vec3(1,0,1)),f.x),mix(h13(i+vec3(0,1,1)),h13(i+vec3(1,1,1)),f.x),f.y),f.z);}
+float fbm(vec3 p,int oct){float s=0.,a=.5;for(int i=0;i<8;i++){if(i>=oct)break;s+=a*n3(p);p=p*2.07+vec3(1.7,9.2,3.1);a*=.5;}return s;}
+
+// Colour of a glowing body at temperature t (Kelvin).
+vec3 blackbody(float t){
+  t=clamp(t,1000.,40000.)/100.;
+  float r=t<=66.?1.:clamp(1.29293618606*pow(t-60.,-.1332047592),0.,1.);
+  float g=t<=66.?clamp(.39008157876*log(t)-.63184144378,0.,1.):clamp(1.12989086089*pow(t-60.,-.0755148492),0.,1.);
+  float b=t>=66.?1.:(t<=19.?0.:clamp(.54320678911*log(t-10.)-1.19625408914,0.,1.));
+  return vec3(r,g,b);
+}
+
+// The sky far away: crisp stars of real star colours, and a faint dusty Milky Way.
+vec3 sky(vec3 d){
+  vec3 col=vec3(0);
+  vec3 nb=normalize(vec3(.35,1.,.45));
+  float lat=dot(d,nb), band=exp(-lat*lat*10.);
+  for(int k=0;k<4;k++){
+    float sc=110.+float(k)*170.;
+    vec3 p=d*sc, id=floor(p), f=fract(p);
+    float n=h13(id+float(k)*19.1);
+    float density=.988-float(k)*.0025-band*.012;
+    if(n>density){
+      vec3 c=vec3(h13(id+3.1),h13(id+5.7),h13(id+7.3))*.6+.2;
+      float dist=length(f-c);
+      float bright=pow(h13(id+11.),9.)*14.+.25;
+      float s=exp(-dist*dist*(260.+float(k)*120.));
+      col+=blackbody(2800.+h13(id+13.)*9000.)*s*bright;
+    }
+  }
+  return col;   // pure black space with crisp stars only: no clouds to smear around the hole
+}
+
+// Thin accretion disk (units: Schwarzschild radius = 1). Returns emitted light and opacity.
+const float RIN=3.0, ROUT=17.0;
+vec4 disk(vec3 p,vec3 vel){
+  float r=length(p.xz);
+  if(r<RIN||r>ROUT) return vec4(0);
+  float speed=sqrt(.5/(r-1.));                      // orbital speed (fraction of light speed)
+  float phi=atan(p.z,p.x)+T*(speed/r)*2.2;          // inner gas orbits faster
+  vec2 cs=vec2(cos(phi),sin(phi));
+  // swirling: the radius wobbles along the orbit, so streams weave in and out like real turbulent gas
+  float warp=fbm(vec3(r*.7,cs*1.6)+vec3(0.,0.,T*.015),4);
+  float rr=r+(warp-.5)*1.6;
+  float streams =fbm(vec3(rr*5.5, cs*1.15),6);            // long arcs that wrap around the hole
+  float filament=fbm(vec3(rr*38., cs*2.6)+7.,6);          // razor-thin threads inside the streams
+  float clumps  =fbm(vec3(r*2.2,  cs*5.5)+3.,4);          // brighter knots of hot gas
+  float dens=pow(streams,1.6)*2.4*(.45+filament*1.1)*(.6+.9*clumps);
+  float edge=smoothstep(RIN,RIN+.35,r)*smoothstep(ROUT*.92,ROUT*.5,r);
+  // temperature profile of a thin disk, hottest just outside the inner edge
+  float temp=5600.*pow(RIN/r,.75)*pow(max(1.-sqrt(RIN/r),0.)+.002,.25)*1.55;
+  // relativistic Doppler shift and gravitational redshift
+  vec3 tang=normalize(vec3(-p.z,0.,p.x));
+  float cosT=dot(tang,-normalize(vel));
+  float gam=1./sqrt(1.-speed*speed);
+  float D=1./(gam*(1.-speed*cosT));
+  float g=D*sqrt(1.-1./r);
+  // approaching gas shifts toward white-blue, receding gas toward deep orange-red
+  vec3 c=blackbody(temp*pow(g,1.6))*vec3(1.,.93,.84)*pow(g,3.5)*(.2+dens*dens)*.9;
+  float a=smoothstep(.18,.75,dens)*edge;           // clean gaps between streams: no haze
+  return vec4(c*a,a);
+}
+
+void main(){
+  vec2 uv=(gl_FragCoord.xy-.5*R)/R.y;
+  float cr=cos(roll),sr=sin(roll); uv=mat2(cr,-sr,sr,cr)*uv;
+  vec3 dir=normalize(camRot*vec3(uv*fovK,1.));
+  vec3 pos=camPos, vel=dir;
+  float h2=dot(cross(pos,vel),cross(pos,vel));
+  vec3 acc=vec3(0); float trans=1.; bool captured=false;
+  for(int i=0;i<520;i++){
+    float r=length(pos);
+    float dt=clamp(.045*r,.012,1.2);
+    vec3 prev=pos;
+    vel+=-1.5*h2*pos/pow(dot(pos,pos),2.5)*dt;       // bending of light by gravity
+    pos+=vel*dt;
+    if(prev.y*pos.y<0.){
+      vec3 hit=mix(prev,pos,prev.y/(prev.y-pos.y));
+      vec4 d=disk(hit,vel);
+      acc+=trans*d.rgb; trans*=1.-d.a;
+      if(trans<.005) break;
+    }
+    if(dot(pos,pos)<1.){captured=true;break;}       // crossed the event horizon
+    if(r>90.&&dot(pos,vel)>0.) break;
+  }
+  vec3 col=acc;
+  if(!captured) col+=trans*sky(normalize(vel));
+  o=vec4(col,1.);
+}
+</script>
+
+<!-- 2. Bloom: bright light bleeds softly, like a real camera -->
+<script id="bright" type="x-shader">#version 300 es
+precision highp float; in vec2 v; out vec4 o; uniform sampler2D src;
+void main(){ vec3 c=texture(src,v).rgb; o=vec4(max(c-1.4,0.),1.); }
+</script>
+<script id="blur" type="x-shader">#version 300 es
+precision highp float; in vec2 v; out vec4 o; uniform sampler2D src; uniform vec2 dirv;
+void main(){
+  float w[7]=float[](.1736,.1599,.1248,.0827,.0466,.0222,.0090);
+  vec3 c=texture(src,v).rgb*w[0];
+  for(int i=1;i<7;i++){ c+=texture(src,v+dirv*float(i)).rgb*w[i]; c+=texture(src,v-dirv*float(i)).rgb*w[i]; }
+  o=vec4(c,1.);
+}
+</script>
+<!-- 3. Final image: film-like tone mapping -->
+<script id="comp" type="x-shader">#version 300 es
+precision highp float; in vec2 v; out vec4 o; uniform sampler2D scene, bloomA, bloomB;
+void main(){
+  vec3 c=texture(scene,v).rgb + texture(bloomA,v).rgb*.2 + texture(bloomB,v).rgb*.07;
+  c*=.95;
+  float lum=dot(c,vec3(.2126,.7152,.0722));
+  c=max(mix(vec3(lum),c,1.35),0.);                 // richer colour
+  c=(c*(2.51*c+.03))/(c*(2.43*c+.59)+.14);
+  c=c*c*(3.-2.*c)*.25+c*.75;                        // a touch more contrast
+  c=pow(clamp(c,0.,1.),vec3(1./2.2));
+  vec2 q=v-.5; c*=1.-dot(q,q)*.35;
+  o=vec4(c,1.);
+}
+</script>
+
+<!-- 4. Nearby stars and dust in 3D around you, spiralling into the hole -->
+<script id="pvs" type="x-shader">#version 300 es
+in vec3 p; in vec4 c;
+uniform vec3 camPos; uniform mat3 camRot; uniform float roll; uniform vec2 R; uniform float dpr; uniform float fovK;
+out vec3 col; out float alpha;
+void main(){
+  vec3 d=p-camPos; vec3 l=transpose(camRot)*d;
+  vec3 dir=normalize(d); float t=-dot(camPos,dir);
+  // hidden if behind you, or if it would appear over the black hole's shadow (unless it's right next to you)
+  float shadowR=3.1;
+  bool overShadow=t>0. && length(camPos+dir*t)<shadowR && length(d)>1.2;
+  bool hidden=l.z<.05 || overShadow;
+  if(hidden){gl_Position=vec4(2.,2.,2.,1.);gl_PointSize=0.;return;}
+  vec2 uv=l.xy/l.z/fovK;
+  float cr=cos(-roll),sr=sin(-roll); uv=mat2(cr,-sr,sr,cr)*uv;
+  gl_Position=vec4(uv.x*2.*R.y/R.x,uv.y*2.,0.,1.);
+  float size=c.a*R.y*.55/l.z;
+  gl_PointSize=clamp(size*2.2,1.5,18.*dpr);
+  float r=length(p);
+  alpha=clamp(size,.04,1.)*smoothstep(4.,7.,r)*smoothstep(70.,55.,r);   // fade out before reaching the hole
+  col=c.rgb;
+}
+</script>
+<script id="pfs" type="x-shader">#version 300 es
+precision highp float; in vec3 col; in float alpha; out vec4 o;
+void main(){
+  float d=length(gl_PointCoord-.5);
+  float a=exp(-d*d*28.)+exp(-d*d*6.)*.18;
+  o=vec4(col*a*alpha,1.);
+}
+</script>
+
+<script>
+const cv=document.getElementById('c');
+const gl=cv.getContext('webgl2',{antialias:false,alpha:false});
+if(!gl){document.getElementById('err').style.display='flex';throw 0}
+const floatOK=!!gl.getExtension('EXT_color_buffer_float');
+gl.getExtension('OES_texture_float_linear');
+
+function prog(fsId,vsId='vs'){
+  const mk=(t,s)=>{const o=gl.createShader(t);gl.shaderSource(o,s.trim());gl.compileShader(o);if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))console.error(gl.getShaderInfoLog(o));return o};
+  const p=gl.createProgram();
+  gl.attachShader(p,mk(gl.VERTEX_SHADER,document.getElementById(vsId).textContent));
+  gl.attachShader(p,mk(gl.FRAGMENT_SHADER,document.getElementById(fsId).textContent));
+  gl.bindAttribLocation(p,0,'a');gl.bindAttribLocation(p,1,'p');gl.bindAttribLocation(p,2,'c');gl.linkProgram(p);
+  if(!gl.getProgramParameter(p,gl.LINK_STATUS))console.error(gl.getProgramInfoLog(p));
+  const u={};const n=gl.getProgramParameter(p,gl.ACTIVE_UNIFORMS);
+  for(let i=0;i<n;i++){const nm=gl.getActiveUniform(p,i).name;u[nm]=gl.getUniformLocation(p,nm)}
+  return {p,u};
+}
+const P={scene:prog('scene'),bright:prog('bright'),blur:prog('blur'),comp:prog('comp'),pts:prog('pfs','pvs')};
+const quadVAO=gl.createVertexArray();gl.bindVertexArray(quadVAO);
+gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());
+gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+
+// ---- nearby particles: stars and glowing dust in a flattened cloud, spiralling inward ----
+const N=3200;
+const pr=new Float32Array(N),pth=new Float32Array(N),py=new Float32Array(N);
+const posData=new Float32Array(N*3),colData=new Float32Array(N*4);
+const starCols=[[1,1,1],[.78,.86,1],[.66,.78,1],[1,.92,.8],[1,.78,.55],[1,.6,.38]];
+function spawn(i,first){
+  pr[i]=first?4+Math.pow(Math.random(),.7)*62:45+Math.random()*22;
+  pth[i]=Math.random()*Math.PI*2;
+  py[i]=(Math.random()-.5)*pr[i]*(Math.random()<.5?.25:.8);
+}
+for(let i=0;i<N;i++){
+  spawn(i,true);
+  const dust=Math.random()<.3, k=dust?3+Math.floor(Math.random()*3):Math.floor(Math.random()*3);
+  const b=dust?.5+Math.random()*.6:.7+Math.random()*.5;
+  colData.set([starCols[k][0]*b,starCols[k][1]*b,starCols[k][2]*b,(Math.random()<.04?.11:.025+Math.random()*.035)],i*4);
+}
+const ptsVAO=gl.createVertexArray();gl.bindVertexArray(ptsVAO);
+const posBuf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,posBuf);gl.bufferData(gl.ARRAY_BUFFER,posData.byteLength,gl.DYNAMIC_DRAW);
+gl.enableVertexAttribArray(1);gl.vertexAttribPointer(1,3,gl.FLOAT,false,0,0);
+gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());gl.bufferData(gl.ARRAY_BUFFER,colData,gl.STATIC_DRAW);
+gl.enableVertexAttribArray(2);gl.vertexAttribPointer(2,4,gl.FLOAT,false,0,0);
+gl.bindVertexArray(quadVAO);
+let infall=1;
+function stepParticles(dt){
+  for(let i=0;i<N;i++){
+    const r=pr[i];
+    pth[i]+=dt*1.1/Math.pow(r,1.5);                  // orbit: faster closer in
+    pr[i]-=dt*infall*.32/Math.sqrt(r);               // slow fall inward
+    py[i]*=1-dt*.02*infall;                          // settle toward the disk plane
+    if(pr[i]<4)spawn(i,false);
+    posData[i*3]=pr[i]*Math.cos(pth[i]);posData[i*3+1]=py[i];posData[i*3+2]=pr[i]*Math.sin(pth[i]);
+  }
+}
+
+function target(w,h){
+  const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);
+  gl.texImage2D(gl.TEXTURE_2D,0,floatOK?gl.RGBA16F:gl.RGBA8,w,h,0,gl.RGBA,floatOK?gl.HALF_FLOAT:gl.UNSIGNED_BYTE,null);
+  for(const k of [gl.TEXTURE_MIN_FILTER,gl.TEXTURE_MAG_FILTER])gl.texParameteri(gl.TEXTURE_2D,k,gl.LINEAR);
+  for(const k of [gl.TEXTURE_WRAP_S,gl.TEXTURE_WRAP_T])gl.texParameteri(gl.TEXTURE_2D,k,gl.CLAMP_TO_EDGE);
+  const f=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,f);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,t,0);
+  return {t,f,w,h};
+}
+let scale=1,S,B1,B2,B3,B4;
+function resize(){
+  const dpr=Math.min(devicePixelRatio,2);
+  cv.width=Math.round(innerWidth*dpr);cv.height=Math.round(innerHeight*dpr);
+  const w=Math.round(cv.width*scale),h=Math.round(cv.height*scale);
+  S=target(w,h);
+  B1=target(w>>2,h>>2);B2=target(w>>2,h>>2);
+  B3=target(w>>3,h>>3);B4=target(w>>3,h>>3);
+}
+resize();addEventListener('resize',resize);
+document.getElementById('q').onchange=e=>{scale=+e.target.value;resize()};
+
+// camera: orbit around the hole, nearly edge-on like Interstellar
+const home={yaw:.35,pitch:.075,dist:40};
+let cam={...home},auto=true;
+document.getElementById('auto').onclick=e=>{auto=!auto;e.target.textContent='Auto orbit: '+(auto?'on':'off')};
+let drag=null;
+cv.onpointerdown=e=>{drag={x:e.clientX,y:e.clientY};cv.setPointerCapture(e.pointerId)};
+cv.onpointermove=e=>{if(!drag)return;cam.yaw-=(e.clientX-drag.x)*.004;cam.pitch=Math.max(-1.45,Math.min(1.45,cam.pitch+(e.clientY-drag.y)*.004));drag={x:e.clientX,y:e.clientY}};
+cv.onpointerup=()=>drag=null;
+cv.onwheel=e=>{e.preventDefault();cam.dist=Math.max(2.4,Math.min(80,cam.dist*Math.exp(e.deltaY*.0012)))};
+cv.ondblclick=()=>{cam={...home};sink=null;infall=1};
+
+// The 20-second journey: a calm glide in from far away, then the black hole takes hold and you fall
+// in freely — slow at first, then faster and faster (r ∝ (1 - t/T)^(2/3), real free fall), through the
+// event horizon into darkness. A countdown sits at the top the whole time.
+const TOTAL=20, GLIDE=12, FALL=6.5, R0=70, R1=12;
+let sink=null;
+const timerEl=document.getElementById('timer'),timeEl=document.getElementById('time'),fillEl=document.getElementById('fill');
+document.getElementById('sink').onclick=()=>{cam={...home,dist:R0};sink={t:0};timerEl.style.opacity=1};
+function stepSink(dt){
+  if(!sink)return;
+  sink.t+=dt;
+  const t=sink.t;
+  if(t<GLIDE){
+    const k=t/GLIDE,e=1-Math.pow(1-k,2);
+    cam.dist=R1+(R0-R1)*(1-e);
+    cam.pitch=home.pitch+(.05-home.pitch)*k;
+    infall=1+k*2;
+  }else{
+    const u=Math.min(1,(t-GLIDE)/FALL);
+    cam.dist=Math.max(.35,R1*Math.pow(1-u,2/3));     // free fall: accelerates all the way in
+    cam.yaw+=dt*.35*u;                                // the orbit tightens into a spiral
+    infall=3+u*14;
+  }
+  const left=Math.max(0,TOTAL-t);
+  timeEl.textContent='0:'+String(Math.ceil(left)).padStart(2,'0');
+  fillEl.style.transform=`scaleX(${left/TOTAL})`;
+  if(t>=TOTAL+1.5){sink=null;timerEl.style.opacity=0}
+}
+addEventListener('keydown',e=>{if(e.key==='f'||e.key==='F')document.documentElement.requestFullscreen?.()});
+
+function camera(){
+  const {yaw,pitch,dist}=cam;
+  const pos=[dist*Math.cos(pitch)*Math.sin(yaw),dist*Math.sin(pitch),-dist*Math.cos(pitch)*Math.cos(yaw)];
+  const len=Math.hypot(...pos),f=pos.map(x=>-x/len);
+  let r=[f[2],0,-f[0]];const rl=Math.hypot(...r);r=r.map(x=>x/rl);     // cross(up,f)
+  const u=[f[1]*r[2]-f[2]*r[1],f[2]*r[0]-f[0]*r[2],f[0]*r[1]-f[1]*r[0]];
+  return {pos,rot:[...r,...u,...f]};
+}
+
+function pass(p,fb,w,h,setup){gl.bindFramebuffer(gl.FRAMEBUFFER,fb);gl.viewport(0,0,w,h);gl.useProgram(p.p);setup&&setup(p.u);gl.drawArrays(gl.TRIANGLES,0,3)}
+function bind(unit,tex,loc){gl.activeTexture(gl.TEXTURE0+unit);gl.bindTexture(gl.TEXTURE_2D,tex);gl.uniform1i(loc,unit)}
+
+const t0=performance.now();let last=t0,frames=0,fpsT=t0;
+function frame(now){
+  const dt=(now-last)/1000;last=now;
+  if(auto&&!drag)cam.yaw+=dt*.025;
+  stepSink(Math.min(dt,.05));
+  const c=camera();
+  // the view widens as you near the horizon, so the closing ring of light stays in sight
+  const near=Math.min(1,Math.max(0,(6-cam.dist)/(6-1.1))), fovK=.9+2.4*near*near*(3-2*near);
+  pass(P.scene,S.f,S.w,S.h,u=>{
+    gl.uniform2f(u.R,S.w,S.h);gl.uniform1f(u.T,(now-t0)/1000);
+    gl.uniform3fv(u.camPos,c.pos);gl.uniformMatrix3fv(u.camRot,false,c.rot);gl.uniform1f(u.roll,.12);gl.uniform1f(u.fovK,fovK);
+  });
+  pass(P.bright,B1.f,B1.w,B1.h,u=>bind(0,S.t,u.src));
+  pass(P.blur,B2.f,B2.w,B2.h,u=>{bind(0,B1.t,u.src);gl.uniform2f(u.dirv,1.5/B1.w,0)});
+  pass(P.blur,B1.f,B1.w,B1.h,u=>{bind(0,B2.t,u.src);gl.uniform2f(u.dirv,0,1.5/B1.h)});
+  pass(P.blur,B3.f,B3.w,B3.h,u=>{bind(0,B1.t,u.src);gl.uniform2f(u.dirv,2/B3.w,0)});
+  pass(P.blur,B4.f,B4.w,B4.h,u=>{bind(0,B3.t,u.src);gl.uniform2f(u.dirv,0,2/B3.h)});
+  pass(P.comp,null,cv.width,cv.height,u=>{bind(0,S.t,u.scene);bind(1,B1.t,u.bloomA);bind(2,B4.t,u.bloomB)});
+
+  // nearby stars, added on top as light
+  stepParticles(Math.min(dt,.05));
+  gl.bindVertexArray(ptsVAO);
+  gl.bindBuffer(gl.ARRAY_BUFFER,posBuf);gl.bufferSubData(gl.ARRAY_BUFFER,0,posData);
+  gl.useProgram(P.pts.p);
+  gl.uniform3fv(P.pts.u.camPos,c.pos);gl.uniformMatrix3fv(P.pts.u.camRot,false,c.rot);gl.uniform1f(P.pts.u.roll,.12);gl.uniform1f(P.pts.u.fovK,fovK);
+  gl.uniform2f(P.pts.u.R,cv.width,cv.height);gl.uniform1f(P.pts.u.dpr,Math.min(devicePixelRatio,2));
+  gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE);
+  gl.drawArrays(gl.POINTS,0,N);
+  gl.disable(gl.BLEND);gl.bindVertexArray(quadVAO);
+  frames++;if(now-fpsT>1000){document.getElementById('fps').textContent=Math.round(frames*1000/(now-fpsT))+' fps';frames=0;fpsT=now}
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script></body></html>

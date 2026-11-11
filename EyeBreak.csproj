@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\eye.ico</ApplicationIcon>
+    <AssemblyName>EyeBreak</AssemblyName>
+    <RootNamespace>EyeBreak</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The ray-traced black hole journey, shown in an embedded browser view while the eyes are closed -->
+    <Content Include="web\blackhole.html" CopyToOutputDirectory="PreserveNewest" />
+    <None Remove="preview\**" />
+    <Content Remove="preview\**" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,369 @@
+<Window x:Class="EyeBreak.Flyout"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Eye Break" Width="372" SizeToContent="Height"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" ShowInTaskbar="False" Topmost="True"
+        FontFamily="Segoe UI Variable Text, Segoe UI" TextOptions.TextFormattingMode="Display"
+        UseLayoutRounding="True">
+    <Window.Resources>
+        <SolidColorBrush x:Key="Ink" Color="#F6EFE4"/>
+        <SolidColorBrush x:Key="Muted" Color="#9A9286"/>
+        <SolidColorBrush x:Key="Faint" Color="#6E675D"/>
+        <SolidColorBrush x:Key="Line" Color="#26221C"/>
+        <SolidColorBrush x:Key="Chip" Color="#1A1713"/>
+        <SolidColorBrush x:Key="ChipHover" Color="#241F18"/>
+        <SolidColorBrush x:Key="GoldBrush" Color="#F0B35C"/>
+        <LinearGradientBrush x:Key="GoldFill" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#FFE3AE" Offset="0"/>
+            <GradientStop Color="#F3B45A" Offset="0.55"/>
+            <GradientStop Color="#E39235" Offset="1"/>
+        </LinearGradientBrush>
+
+        <!-- Pill-shaped chip: pause choices -->
+        <Style x:Key="ChipButton" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,8,8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="b" CornerRadius="15" Background="{StaticResource Chip}" BorderBrush="#2C2720" BorderThickness="1" Padding="13,6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="{StaticResource ChipHover}"/>
+                                <Setter TargetName="b" Property="BorderBrush" Value="#7FF0B35C"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="#2E271E"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- The one gold button -->
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Foreground" Value="#1C1307"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Height" Value="44"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <Border x:Name="glow" CornerRadius="12" Background="{StaticResource GoldFill}" Opacity="0.35">
+                                <Border.Effect><BlurEffect Radius="14"/></Border.Effect>
+                            </Border>
+                            <Border x:Name="b" CornerRadius="12" Background="{StaticResource GoldFill}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="glow" Property="Opacity" Value="0.7"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="b" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Quiet text button -->
+        <Style x:Key="GhostButton" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="b" Background="Transparent" CornerRadius="8" Padding="8,5">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="{StaticResource GoldBrush}"/>
+                                <Setter TargetName="b" Property="Background" Value="#14F0B35C"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Round − / + stepper buttons -->
+        <Style x:Key="StepButton" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="Width" Value="30"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="b" CornerRadius="15" Background="{StaticResource Chip}" BorderBrush="#2C2720" BorderThickness="1">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="b" Property="BorderBrush" Value="#7FF0B35C"/>
+                                <Setter TargetName="b" Property="Background" Value="{StaticResource ChipHover}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Switch -->
+        <Style x:Key="Switch" TargetType="CheckBox">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Border x:Name="track" Width="40" Height="22" CornerRadius="11" Background="#2A2620" BorderBrush="#3A342B" BorderThickness="1">
+                            <Ellipse x:Name="thumb" Width="14" Height="14" Fill="#A39B8F" HorizontalAlignment="Left" Margin="4,0,0,0"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="track" Property="Background" Value="{StaticResource GoldFill}"/>
+                                <Setter TargetName="track" Property="BorderBrush" Value="#F0B35C"/>
+                                <Setter TargetName="thumb" Property="Fill" Value="#1C1307"/>
+                                <Setter TargetName="thumb" Property="HorizontalAlignment" Value="Right"/>
+                                <Setter TargetName="thumb" Property="Margin" Value="0,0,4,0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Selectable chip: music choice -->
+        <Style x:Key="RadioChip" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,8,8"/>
+            <Setter Property="GroupName" Value="music"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="b" CornerRadius="15" Background="{StaticResource Chip}" BorderBrush="#2C2720" BorderThickness="1" Padding="13,6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="{StaticResource ChipHover}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="#2A1F12"/>
+                                <Setter TargetName="b" Property="BorderBrush" Value="#F0B35C"/>
+                                <Setter Property="Foreground" Value="#FFD9A0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Outlined gold button -->
+        <Style x:Key="OutlineButton" TargetType="Button">
+            <Setter Property="Foreground" Value="#FFD9A0"/>
+            <Setter Property="FontSize" Value="13.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Height" Value="42"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="b" CornerRadius="12" BorderBrush="#B3F0B35C" BorderThickness="1.2" Background="#0DF0B35C">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="#26F0B35C"/>
+                                <Setter TargetName="b" Property="BorderBrush" Value="#F0B35C"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="LinkBox" TargetType="TextBox">
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+            <Setter Property="CaretBrush" Value="#F0B35C"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="b" CornerRadius="10" Background="#110F0C" BorderBrush="#2C2720" BorderThickness="1" Padding="10,7">
+                            <Grid>
+                                <TextBlock x:Name="ph" Text="Paste a YouTube link" Foreground="{StaticResource Faint}" Visibility="Collapsed" IsHitTestVisible="False"/>
+                                <ScrollViewer x:Name="PART_ContentHost"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Text" Value="">
+                                <Setter TargetName="ph" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="b" Property="BorderBrush" Value="#B3F0B35C"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="RowLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+            <Setter Property="FontSize" Value="13.5"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="SectionLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Faint}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+    </Window.Resources>
+
+    <Border Margin="16" CornerRadius="18" BorderThickness="1">
+        <Border.BorderBrush>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#55F0B35C" Offset="0"/>
+                <GradientStop Color="#1AF0B35C" Offset="0.5"/>
+                <GradientStop Color="#33F0B35C" Offset="1"/>
+            </LinearGradientBrush>
+        </Border.BorderBrush>
+        <Border.Background>
+            <RadialGradientBrush Center="0.5,0.22" GradientOrigin="0.5,0.22" RadiusX="0.9" RadiusY="0.55">
+                <GradientStop Color="#FA1A140C" Offset="0"/>
+                <GradientStop Color="#FA0C0B09" Offset="1"/>
+            </RadialGradientBrush>
+        </Border.Background>
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="30" ShadowDepth="8" Opacity="0.6" Color="Black"/>
+        </Border.Effect>
+
+        <StackPanel Margin="22,18,22,14">
+            <!-- Header: logo and name -->
+            <DockPanel>
+                <Viewbox Width="30" Height="30" DockPanel.Dock="Left" Margin="0,0,10,0">
+                    <Canvas Width="32" Height="32">
+                        <Path Data="M16,1.5 C24.5,9 24.5,23 16,30.5 C7.5,23 7.5,9 16,1.5 Z" Fill="#120E08" Stroke="{StaticResource GoldFill}" StrokeThickness="1.8">
+                            <Path.Effect><DropShadowEffect Color="#F0B35C" BlurRadius="8" ShadowDepth="0" Opacity="0.7"/></Path.Effect>
+                        </Path>
+                        <Ellipse Canvas.Left="12" Canvas.Top="12" Width="8" Height="8">
+                            <Ellipse.Fill>
+                                <RadialGradientBrush>
+                                    <GradientStop Color="#FFFFFFFF" Offset="0"/>
+                                    <GradientStop Color="#99FFF1DA" Offset="0.35"/>
+                                    <GradientStop Color="#00FFF1DA" Offset="1"/>
+                                </RadialGradientBrush>
+                            </Ellipse.Fill>
+                        </Ellipse>
+                        <Rectangle Canvas.Left="15.6" Canvas.Top="9" Width="0.8" Height="14" Fill="#AAFFFFFF"/>
+                        <Rectangle Canvas.Left="10" Canvas.Top="15.6" Width="12" Height="0.8" Fill="#88FFFFFF"/>
+                    </Canvas>
+                </Viewbox>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Eye Break" Foreground="{StaticResource Ink}" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="20 · 20 · 20" Foreground="{StaticResource Faint}" FontSize="11" Margin="0,1,0,0"/>
+                </StackPanel>
+            </DockPanel>
+
+            <!-- Ring: time until the next break -->
+            <Grid Width="168" Height="168" Margin="0,12,0,0" HorizontalAlignment="Center">
+                <Ellipse Fill="#0A0907" Margin="10"/>
+                <Ellipse Stroke="#221E18" StrokeThickness="2" Margin="6"/>
+                <Path x:Name="Arc" Stroke="{StaticResource GoldFill}" StrokeThickness="3.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round">
+                    <Path.Effect><DropShadowEffect Color="#F0B35C" BlurRadius="14" ShadowDepth="0" Opacity="0.85"/></Path.Effect>
+                </Path>
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock x:Name="BigNumber" Text="20" Foreground="{StaticResource Ink}" FontSize="46" FontWeight="Light" HorizontalAlignment="Center"
+                               FontFamily="Segoe UI Variable Display, Segoe UI"/>
+                    <TextBlock x:Name="Unit" Text="min" Foreground="{StaticResource Muted}" FontSize="12.5" HorizontalAlignment="Center" Margin="0,-4,0,0"/>
+                </StackPanel>
+            </Grid>
+            <TextBlock x:Name="Caption" Text="until your next break" Foreground="{StaticResource Muted}" FontSize="12.5" HorizontalAlignment="Center" Margin="0,0,0,16"/>
+
+            <Button x:Name="BreakNow" Style="{StaticResource PrimaryButton}" Content="Take a break now" Click="BreakNow_Click"/>
+            <Button x:Name="ResumeBtn" Style="{StaticResource ChipButton}" Content="Resume breaks" Click="Resume_Click"
+                    HorizontalAlignment="Center" Margin="0,10,0,0" Visibility="Collapsed"/>
+
+            <!-- Pause -->
+            <TextBlock Text="SKIP BREAKS FOR" Style="{StaticResource SectionLabel}" Margin="0,20,0,10"/>
+            <WrapPanel>
+                <Button Style="{StaticResource ChipButton}" Content="30 min" Tag="30" Click="Pause_Click"/>
+                <Button Style="{StaticResource ChipButton}" Content="1 hour" Tag="60" Click="Pause_Click"/>
+                <Button Style="{StaticResource ChipButton}" Content="2 hours" Tag="120" Click="Pause_Click"/>
+                <Button Style="{StaticResource ChipButton}" Content="Until I resume" Tag="0" Click="Pause_Click"/>
+            </WrapPanel>
+
+            <Border Height="1" Background="{StaticResource Line}" Margin="0,10,0,16"/>
+
+            <!-- Infinite mode: music and quotes by the black hole until Esc -->
+            <TextBlock Text="INFINITE MODE" Style="{StaticResource SectionLabel}"/>
+            <WrapPanel x:Name="MusicChips">
+                <RadioButton Style="{StaticResource RadioChip}" Content="Interstellar" Tag="interstellar" Checked="Music_Checked"/>
+                <RadioButton Style="{StaticResource RadioChip}" Content="Deep space" Tag="space" Checked="Music_Checked"/>
+                <RadioButton Style="{StaticResource RadioChip}" Content="Rain &amp; piano" Tag="rain" Checked="Music_Checked"/>
+                <RadioButton Style="{StaticResource RadioChip}" Content="Silence" Tag="none" Checked="Music_Checked"/>
+                <RadioButton Style="{StaticResource RadioChip}" Content="Your link" Tag="custom" Checked="Music_Checked"/>
+            </WrapPanel>
+            <TextBox x:Name="LinkBox" Style="{StaticResource LinkBox}" Margin="0,2,0,10" Visibility="Collapsed" LostFocus="LinkBox_Changed" KeyUp="LinkBox_KeyUp"/>
+            <TextBlock x:Name="LinkError" Foreground="#F09595" FontSize="11.5" Margin="2,-6,0,10" Visibility="Collapsed" Text="That doesn't look like a YouTube link"/>
+            <Button Style="{StaticResource OutlineButton}" Content="Enter infinite mode" Click="Infinite_Click" Margin="0,4,0,0"/>
+            <TextBlock Text="Press Esc to return whenever you're ready" Foreground="{StaticResource Faint}" FontSize="11" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+
+            <!-- Settings, saved as you change them (folded away until "Settings" is clicked) -->
+            <StackPanel x:Name="SettingsPanel" Visibility="Collapsed">
+            <Border Height="1" Background="{StaticResource Line}" Margin="0,16,0,16"/>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="40"/><RowDefinition Height="40"/><RowDefinition Height="38"/><RowDefinition Height="38"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/><ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Text="Break every" Style="{StaticResource RowLabel}"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Style="{StaticResource StepButton}" Content="−" Click="IntervalDown"/>
+                    <TextBlock x:Name="IntervalText" Text="20 min" Foreground="{StaticResource Ink}" FontSize="13.5" Width="62" TextAlignment="Center" VerticalAlignment="Center"/>
+                    <Button Style="{StaticResource StepButton}" Content="+" Click="IntervalUp"/>
+                </StackPanel>
+
+                <TextBlock Grid.Row="1" Text="Eyes closed for" Style="{StaticResource RowLabel}"/>
+                <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Style="{StaticResource StepButton}" Content="−" Click="SecondsDown"/>
+                    <TextBlock x:Name="SecondsText" Text="20 sec" Foreground="{StaticResource Ink}" FontSize="13.5" Width="62" TextAlignment="Center" VerticalAlignment="Center"/>
+                    <Button Style="{StaticResource StepButton}" Content="+" Click="SecondsUp"/>
+                </StackPanel>
+
+                <TextBlock Grid.Row="2" Text="Start with Windows" Style="{StaticResource RowLabel}"/>
+                <CheckBox x:Name="AutostartSwitch" Grid.Row="2" Grid.Column="1" Style="{StaticResource Switch}" HorizontalAlignment="Right" VerticalAlignment="Center" Click="Autostart_Click"/>
+
+                <TextBlock Grid.Row="3" Text="Hide from screen sharing" Style="{StaticResource RowLabel}"/>
+                <CheckBox x:Name="HideSwitch" Grid.Row="3" Grid.Column="1" Style="{StaticResource Switch}" HorizontalAlignment="Right" VerticalAlignment="Center" Click="Hide_Click"/>
+            </Grid>
+            </StackPanel>
+
+            <Border Height="1" Background="{StaticResource Line}" Margin="0,14,0,8"/>
+            <DockPanel>
+                <Button Style="{StaticResource GhostButton}" Content="Quit Eye Break" Click="Quit_Click" DockPanel.Dock="Left" Margin="-8,0,0,0"/>
+                <Button x:Name="SettingsToggle" Style="{StaticResource GhostButton}" Content="Settings ▾" Click="SettingsToggle_Click" HorizontalAlignment="Right" Margin="0,0,-8,0"/>
+            </DockPanel>
+        </StackPanel>
+    </Border>
+</Window>
