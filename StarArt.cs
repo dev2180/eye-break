@@ -35,8 +35,8 @@ public sealed record StarArt(BitmapSource Core, BitmapSource Glow, BitmapSource 
         });
 
         // The aura: the outline of the Dhyanalinga (as engraved on its pendant), without the yoni. A tall form
-        // about twice as high as it is wide: a full round dome, fuller shoulders, nearly straight sides that
-        // narrow gently low down, then a small outward flare onto a flat base. The star sits at its heart.
+        // about twice as high as it is wide: a full round dome on a straight, upright pillar with a flat base.
+        // The star sits at its heart.
         // A bright golden outline, a soft inner glow and a faint pillar of light through the star.
         int aw = (int)(0.6 * h), ah = (int)(0.8 * h);
         var sdf = DhyanalingaField(aw, ah, top: -0.22 * h, height: 0.44 * h, halfWidth: 0.118 * h);
@@ -85,10 +85,7 @@ public sealed record StarArt(BitmapSource Core, BitmapSource Glow, BitmapSource 
             double u = (dome - t) / dome;
             return Math.Sqrt(Math.Max(0, 1 - u * u));
         }
-        return 1
-            + 0.025 * Math.Exp(-Math.Pow((t - 0.36) / 0.14, 2))          // fuller shoulders
-            - 0.045 * Math.Exp(-Math.Pow((t - 0.80) / 0.11, 2))          // a gentle waist low down
-            + 0.11 * Math.Pow(Math.Max(0, t - 0.86) / 0.14, 2);          // the foot flares onto the base
+        return 1;   // a straight pillar from the dome down to a flat base
     }
 
     /// <summary>
