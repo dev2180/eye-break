@@ -36,7 +36,8 @@ public sealed class OverlayWindow : Window
     readonly System.Drawing.Rectangle _bounds;
     readonly Path _lid, _rim, _gold;
     readonly Grid _starLayer = new() { IsHitTestVisible = false };
-    readonly Image _bloom = Sprite(), _linga = Sprite(), _halo = Sprite(), _haloFar = Sprite(), _glow = Sprite(), _core = Sprite();
+    readonly Image _bloom = Sprite(), _linga = Sprite(), _ripple1 = Sprite(), _ripple2 = Sprite(), _ripple3 = Sprite(), _glow = Sprite(), _core = Sprite();
+    readonly ScaleTransform[] _rippleScale = { new(1, 1), new(1, 1), new(1, 1) };
     readonly ScaleTransform _coreScale = new(0.02, 0.02), _glowScale = new(0.02, 0.02);
     readonly TaskCompletionSource _art = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -81,6 +82,7 @@ public sealed class OverlayWindow : Window
             Effect = new DropShadowEffect { Color = Gold, BlurRadius = 28, ShadowDepth = 0, Opacity = 1 },
             Opacity = 0,
         };
+        _ripple1.RenderTransform = _rippleScale[0]; _ripple2.RenderTransform = _rippleScale[1]; _ripple3.RenderTransform = _rippleScale[2];
         _core.RenderTransform = _coreScale;
         _glow.RenderTransform = _glowScale;
 
@@ -95,7 +97,7 @@ public sealed class OverlayWindow : Window
         var root = new Grid { Background = Brushes.Transparent };
         root.Children.Add(_lid);
         root.Children.Add(_rim);
-        foreach (var img in new[] { _bloom, _haloFar, _halo, _linga, _glow, _core })
+        foreach (var img in new[] { _bloom, _ripple1, _ripple2, _ripple3, _linga, _glow, _core })
             _starLayer.Children.Add(img);
         root.Children.Add(_starLayer);
         root.Children.Add(_gold);
@@ -133,9 +135,9 @@ public sealed class OverlayWindow : Window
                 img.Height = b.PixelHeight * sizeK / scale;
             }
             Set(_core, art.Core); Set(_glow, art.Glow); Set(_linga, art.Linga);
-            Set(_halo, art.Halo); Set(_haloFar, art.HaloFar);
+            Set(_ripple1, art.Ripple); Set(_ripple2, art.Ripple); Set(_ripple3, art.Ripple);
             Set(_bloom, art.Bloom, 1.6 * _bounds.Height / art.Bloom.PixelHeight);
-            foreach (var img in new[] { _core, _glow, _linga, _halo, _haloFar, _bloom })
+            foreach (var img in new[] { _core, _glow, _linga, _ripple1, _ripple2, _ripple3, _bloom })
                 RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
         }
         catch (Exception ex) { GammaDimmer.Log("star art failed: " + ex.Message); }
@@ -222,17 +224,25 @@ public sealed class OverlayWindow : Window
         _coreScale.ScaleX = _coreScale.ScaleY = 0.02 + 0.98 * born;
         _glowScale.ScaleX = _glowScale.ScaleY = 0.02 + 0.98 * Math.Pow(born, 1.4);
         _core.Opacity = Math.Clamp(s.Star * 4, 0, 1);
-        _glow.Opacity = Math.Clamp((s.Star - 0.15) / 0.85, 0, 1) * (0.86 + 0.14 * br * s.Aura);
-        _bloom.Opacity = Math.Clamp(s.Flash, 0, 1) * (0.9 + 0.1 * br);
+        // The star pulses: a heartbeat of light at the top of each breath.
+        double pulse = Math.Pow(0.5 + 0.5 * br, 4);
+        _glow.Opacity = Math.Clamp((s.Star - 0.15) / 0.85, 0, 1) * (0.78 + 0.22 * pulse * s.Aura);
+        _bloom.Opacity = Math.Clamp(s.Flash + 0.12 * pulse * s.Aura, 0, 1);
 
-        // The linga stays perfectly still. Its aura breathes: the close glow brightens on the in-breath, and the
-        // far glow follows a moment later, so the light seems to pour outward and settle back.
+        // The linga stays perfectly still. With each pulse of the star a ring of light in the linga's shape leaves
+        // its outline and travels outward, fading as it goes, like a ripple on water. Each ring lives three
+        // pulses, so three are in flight at once, the newest bright and close, the oldest faint and far.
         _linga.Opacity = s.Aura;
-        double near = 0.5 + 0.5 * br;
-        double far = 0.5 + 0.5 * Math.Sin(2 * Math.PI * s.Time / Breath - 0.9);
-        // Each breath the aura blooms out fully and fades away completely, then blooms again.
-        _halo.Opacity = s.Aura * near * near;
-        _haloFar.Opacity = s.Aura * far * far;
+        var rings = new[] { _ripple1, _ripple2, _ripple3 };
+        double beat = s.Time / Breath - 0.25;            // 0 at a pulse peak
+        for (int k = 0; k < 3; k++)
+        {
+            double p = (beat + k) / 3; p -= Math.Floor(p); // 0..1 through this ring's life
+            double grow = 1 - Math.Pow(1 - p, 2);          // fast out of the outline, slowing as it spreads
+            _rippleScale[k].ScaleX = 1 + 1.0 * grow;
+            _rippleScale[k].ScaleY = 1 + 0.75 * grow;
+            rings[k].Opacity = s.Aura * Math.Min(1, p * 14) * Math.Pow(1 - p, 1.6);
+        }
 
         _msg.Opacity = s.MessageOpacity;
         _count.Text = s.Countdown.ToString();

@@ -9,7 +9,7 @@ namespace EyeBreak;
 /// of light around it. The overlay only changes brightness; the linga's shape never changes.
 /// All images are premultiplied light on black, so drawn over the closed lids they add up like light.
 /// </summary>
-public sealed record StarArt(BitmapSource Core, BitmapSource Glow, BitmapSource Linga, BitmapSource Halo, BitmapSource HaloFar, BitmapSource Bloom)
+public sealed record StarArt(BitmapSource Core, BitmapSource Glow, BitmapSource Linga, BitmapSource Ripple, BitmapSource Bloom)
 {
     /// <summary>Builds every image for a monitor that is <paramref name="h"/> pixels tall. Safe on any thread.</summary>
     public static StarArt Build(int h)
@@ -57,18 +57,12 @@ public sealed record StarArt(BitmapSource Core, BitmapSource Glow, BitmapSource 
             return (shell + white, shell * 0.72 + white * 0.93, shell * 0.30 + white * 0.80);
         });
 
-        // The aura around it: light radiating outward from the outline, in two layers (close and far).
-        // Only their brightness pulses, so the aura seems to swell and settle while the linga stays still.
-        var halo = Render(aw, ah, (x, y) =>
+        // The aura: a ring of light in the linga's own shape. The overlay sends copies of it out from the fixed
+        // outline with each pulse of the star, expanding and fading like ripples on water.
+        var ripple = Render(aw, ah, (x, y) =>
         {
             double s = LingamS(x, y);
-            double i = s > 0 ? 1.1 * Math.Exp(-s / (0.03 * h)) : 1.1 * Math.Exp(s / (0.012 * h)) * 0.6;
-            return (i, i * 0.76, i * 0.36);
-        });
-        var haloFar = Render(aw, ah, (x, y) =>
-        {
-            double s = LingamS(x, y);
-            double i = s > 0 ? 0.7 * Math.Exp(-s / (0.06 * h)) : 0.7 * Math.Exp(s / (0.03 * h)) * 0.5;
+            double i = 0.95 * Math.Exp(-Math.Pow(s / (0.0055 * h), 2)) + 0.18 * Math.Exp(-Math.Pow(s / (0.02 * h), 2));
             return (i, i * 0.80, i * 0.45);
         });
 
@@ -81,7 +75,7 @@ public sealed record StarArt(BitmapSource Core, BitmapSource Glow, BitmapSource 
             return (i, i * 0.95, i * 0.86);
         });
 
-        return new StarArt(core, glow, linga, halo, haloFar, bloom);
+        return new StarArt(core, glow, linga, ripple, bloom);
     }
 
     /// <summary>Half-width of the Dhyanalinga at height t (0 = crown, 1 = base), as a fraction of its widest half.</summary>
