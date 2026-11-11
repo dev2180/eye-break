@@ -18,7 +18,9 @@ public sealed class EyeState
     public double Grow;            // third eye: expansion until the screen is uncovered 0..1
     public double Glow;            // third eye: golden edge opacity 0..1
     public double Star;            // the white star at the centre 0..1
-    public double Flash;           // the star's flare 0..1
+    public double Flash;           // the star's flare (a wide bloom) 0..1
+    public double Aura;            // the pulsing lingam-shaped aura around the star 0..1
+    public double Time;            // seconds, drives the aura's breathing
     public double MessageOpacity;  // fallback countdown, only if the black hole can't run
     public int Countdown;
 }
@@ -32,19 +34,20 @@ public sealed class OverlayWindow : Window
 
     readonly System.Drawing.Rectangle _bounds;
     readonly Path _lid, _rim, _gold;
-    readonly Grid _star;
     readonly Grid _starLayer = new() { IsHitTestVisible = false };
-    readonly Image _starImage = new() { Stretch = Stretch.Fill, Opacity = 0, IsHitTestVisible = false };
+    readonly Image _bloom = Sprite(), _aura = Sprite(), _ripple1 = Sprite(), _ripple2 = Sprite(), _glow = Sprite(), _core = Sprite();
+    readonly ScaleTransform _auraScale = new(1, 1), _r1Scale = new(1, 1), _r2Scale = new(1, 1);
+    readonly TaskCompletionSource _art = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    /// <summary>
-    /// Use a snapshot of the black hole page's star (pixel-identical) instead of the drawn one.
-    /// </summary>
-    public void UseStarSnapshot(System.Windows.Media.Imaging.BitmapSource image)
+    /// <summary>Completes once the star and aura images for this monitor are rendered.</summary>
+    public Task ArtReady => _art.Task;
+
+    static Image Sprite() => new()
     {
-        _starImage.Source = image;
-        _star.Visibility = Visibility.Collapsed;
-    }
-    readonly ScaleTransform _starScale = new(1, 1);
+        Stretch = Stretch.Fill, Opacity = 0, IsHitTestVisible = false,
+        HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+        RenderTransformOrigin = new Point(0.5, 0.5),
+    };
     readonly StackPanel _msg;
     readonly TextBlock _count;
     IntPtr _hwnd;
@@ -62,6 +65,10 @@ public sealed class OverlayWindow : Window
         ShowInTaskbar = false;
         ShowActivated = false;
         Left = 0; Top = 0; Width = 100; Height = 100; // real size is set in pixels once the window exists
+        // No mouse pointer over the closed eyes or the star. Where the third eye has opened, the window is
+        // transparent, so the pointer belongs to the app underneath again and comes back by itself.
+        Cursor = System.Windows.Input.Cursors.None;
+        ForceCursor = true;
 
         _lid = new Path { Fill = new SolidColorBrush(LidColor) };
         _rim = new Path { Stroke = new SolidColorBrush(RimColor), StrokeThickness = 3 };
@@ -73,7 +80,9 @@ public sealed class OverlayWindow : Window
             Effect = new DropShadowEffect { Color = Gold, BlurRadius = 28, ShadowDepth = 0, Opacity = 1 },
             Opacity = 0,
         };
-        _star = BuildStar();
+        _aura.RenderTransform = _auraScale;
+        _ripple1.RenderTransform = _r1Scale;
+        _ripple2.RenderTransform = _r2Scale;
 
         _count = new TextBlock { FontSize = 64, FontWeight = FontWeights.Light, HorizontalAlignment = HorizontalAlignment.Center };
         _msg = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Opacity = 0, IsHitTestVisible = false };
@@ -86,8 +95,8 @@ public sealed class OverlayWindow : Window
         var root = new Grid { Background = Brushes.Transparent };
         root.Children.Add(_lid);
         root.Children.Add(_rim);
-        _starLayer.Children.Add(_star);
-        _starLayer.Children.Add(_starImage);
+        foreach (var img in new[] { _bloom, _aura, _ripple1, _ripple2, _glow, _core })
+            _starLayer.Children.Add(img);
         root.Children.Add(_starLayer);
         root.Children.Add(_gold);
         root.Children.Add(_msg);
@@ -106,33 +115,47 @@ public sealed class OverlayWindow : Window
             Width = _bounds.Width / scale;
             Height = _bounds.Height / scale;
             SetWindowPos(_hwnd, HWND_TOPMOST, _bounds.Left, _bounds.Top, _bounds.Width, _bounds.Height, SWP_NOACTIVATE);
+            _ = LoadArtAsync(scale);
         };
         Closing += (_, e) => { if (!AllowClose) e.Cancel = true; }; // blocks Alt+F4
     }
 
-    /// <summary>The white star: a bright core, a soft halo and four light rays, matching the black hole page.</summary>
-    Grid BuildStar()
+    /// <summary>Renders the star and aura for this monitor's size off the UI thread, then shows them pixel-exact.</summary>
+    async Task LoadArtAsync(double scale)
     {
-        var white = Color.FromRgb(0xFF, 0xFB, 0xF4);
-        Brush Radial(double centre, double mid) => new RadialGradientBrush(new GradientStopCollection
+        try
         {
-            new(Color.FromArgb((byte)(255 * centre), white.R, white.G, white.B), 0),
-            new(Color.FromArgb((byte)(255 * mid), 0xFF, 0xF0, 0xDC), 0.25),
-            new(Color.FromArgb(0, 0xFF, 0xF0, 0xDC), 1),
-        });
-        Brush Ray(bool horizontal) => new LinearGradientBrush(new GradientStopCollection
-        {
-            new(Color.FromArgb(0, 255, 255, 255), 0), new(Color.FromArgb(150, 255, 250, 240), 0.5), new(Color.FromArgb(0, 255, 255, 255), 1),
-        }, horizontal ? new Point(0, 0.5) : new Point(0.5, 0), horizontal ? new Point(1, 0.5) : new Point(0.5, 1));
-
-        var g = new Grid { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Opacity = 0, IsHitTestVisible = false,
-                           RenderTransform = _starScale, RenderTransformOrigin = new Point(0.5, 0.5) };
-        g.Children.Add(new Ellipse { Width = 420, Height = 420, Fill = Radial(0.35, 0.10) });
-        g.Children.Add(new Rectangle { Width = 520, Height = 2, Fill = Ray(true), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center });
-        g.Children.Add(new Rectangle { Width = 2, Height = 520, Fill = Ray(false), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center });
-        g.Children.Add(new Ellipse { Width = 46, Height = 46, Fill = Radial(1, 0.6), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center });
-        return g;
+            var art = await Task.Run(() => StarArt.Build(_bounds.Height));
+            void Set(Image img, System.Windows.Media.Imaging.BitmapSource b, double sizeK = 1)
+            {
+                img.Source = b;
+                img.Width = b.PixelWidth * sizeK / scale;
+                img.Height = b.PixelHeight * sizeK / scale;
+            }
+            Set(_core, art.Core); Set(_glow, art.Glow); Set(_aura, art.Aura);
+            Set(_ripple1, art.Ripple); Set(_ripple2, art.Ripple);
+            Set(_bloom, art.Bloom, 1.6 * _bounds.Height / art.Bloom.PixelHeight);
+            foreach (var img in new[] { _core, _glow, _aura, _ripple1, _ripple2, _bloom })
+                RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
+        }
+        catch (Exception ex) { GammaDimmer.Log("star art failed: " + ex.Message); }
+        _art.TrySetResult();
     }
+
+    /// <summary>
+    /// Windows only re-picks the pointer shape when the mouse moves. A one-pixel nudge and back makes it ask
+    /// the window now under it (ours), so the pointer disappears without the user touching the mouse.
+    /// </summary>
+    public static void RefreshCursor()
+    {
+        if (!GetCursorPos(out var p)) return;
+        SetCursorPos(p.X + 1, p.Y);
+        SetCursorPos(p.X, p.Y);
+    }
+
+    [StructLayout(LayoutKind.Sequential)] struct POINT { public int X, Y; }
+    [DllImport("user32.dll")] static extern bool GetCursorPos(out POINT p);
+    [DllImport("user32.dll")] static extern bool SetCursorPos(int x, int y);
 
     /// <summary>Re-asserts top-most so other "always on top" windows can't climb above us.</summary>
     public void KeepOnTop()
@@ -189,11 +212,32 @@ public sealed class OverlayWindow : Window
 
         // The star sits on the darkness, never inside the opening eye.
         _starLayer.Clip = lid;
-        _star.Opacity = _starImage.Source == null ? s.Star : 0;
-        _starImage.Opacity = s.Star;   // brightness only: the star never changes size
+        // The star only ever changes brightness: the point lights first, then its glow spreads.
+        // It breathes with the aura: a slow inhale/exhale of about 3.4 s.
+        const double Breath = 3.4;
+        double br = Math.Sin(2 * Math.PI * s.Time / Breath);
+        _core.Opacity = Math.Clamp(s.Star * 1.6, 0, 1);
+        _glow.Opacity = Math.Clamp((s.Star - 0.2) / 0.8, 0, 1) * (0.86 + 0.14 * br * s.Aura);
+        _bloom.Opacity = Math.Clamp(s.Flash, 0, 1) * (0.9 + 0.1 * br);
+
+        // The lingam aura swells and settles with each breath, and a shell of light ripples outwards from it.
+        _aura.Opacity = s.Aura * (0.78 + 0.22 * br);
+        _auraScale.ScaleX = 1 + 0.035 * br;
+        _auraScale.ScaleY = 1 + 0.05 * br;
+        Ripple(_ripple1, _r1Scale, s.Time / Breath, s.Aura);
+        Ripple(_ripple2, _r2Scale, s.Time / Breath + 0.5, s.Aura);
 
         _msg.Opacity = s.MessageOpacity;
         _count.Text = s.Countdown.ToString();
+    }
+
+    static void Ripple(Image img, ScaleTransform sc, double phase, double aura)
+    {
+        double p = phase - Math.Floor(phase);          // 0..1 through one breath
+        double sz = 0.9 + 0.75 * p;
+        sc.ScaleX = sz; sc.ScaleY = sz * (1 + 0.04 * p);
+        double fade = Math.Sin(Math.PI * Math.Min(1, p * 1.25));
+        img.Opacity = aura * 0.7 * fade * fade * (1 - p);
     }
 
     static PathFigure Figure(Point start, bool closed, params PathSegment[] segs)

@@ -516,10 +516,9 @@ async function start(seconds){
 async function fallAndStar(){
   await new Promise(r=>{(function chk(){sink&&sink.t<TOTAL?requestAnimationFrame(chk):r()})()});
   timerEl.style.opacity=0;sink=null;
+  // A moment of pure darkness past the horizon. The app births the star (and its aura) from here,
+  // so the hand-off happens on black and nothing has to match.
   await wait(900);
-  await tw(t=>E.star=t,1800);
-  await wait(500);
-  await tw(t=>E.flash=t,450);
   post('done');
 }
 // Clear the page back to black after the app has taken over.

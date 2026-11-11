@@ -113,25 +113,6 @@ public sealed class BlackHoleWindow : Window
         await _done.Task;
     }
 
-    /// <summary>A pixel-exact snapshot of what's on screen (the star), so the app can take over without a jump.</summary>
-    public async Task<System.Windows.Media.Imaging.BitmapSource?> CaptureAsync()
-    {
-        try
-        {
-            using var ms = new MemoryStream();
-            await _web.CoreWebView2.CapturePreviewAsync(CoreWebView2CapturePreviewImageFormat.Png, ms);
-            ms.Position = 0;
-            var bmp = new System.Windows.Media.Imaging.BitmapImage();
-            bmp.BeginInit();
-            bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
-            bmp.StreamSource = ms;
-            bmp.EndInit();
-            bmp.Freeze();
-            return bmp;
-        }
-        catch { return null; }
-    }
-
     public void KeepOnTop()
     {
         if (_hwnd != IntPtr.Zero && Revealed)

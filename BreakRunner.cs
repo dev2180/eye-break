@@ -7,9 +7,10 @@ namespace EyeBreak;
 /// <summary>
 /// Runs one break on every monitor:
 ///   1. the eyes settle closed like starting meditation (native eyelids),
-///   2. the ray-traced black hole journey with the countdown, ending in darkness and a white star (web view),
-///   3. the third eye opens from that star at the centre of the screen (native again).
-/// The hand-offs between 1→2 and 2→3 happen in complete darkness / on the same star, so they can't be seen.
+///   2. the ray-traced black hole journey with the countdown, ending in darkness past the horizon (web view),
+///   3. a white star is born in that darkness with a breathing lingam-shaped aura (native again),
+///   4. the third eye opens from the star at the centre of the screen.
+/// Both hand-offs happen in complete darkness, so they can't be seen.
 /// </summary>
 public sealed class BreakRunner
 {
@@ -107,6 +108,7 @@ public sealed class BreakRunner
             await Lids(0.40, 1600);
             await Task.Delay(900);
             await Lids(1.0, 3500);
+            OverlayWindow.RefreshCursor();   // eyes shut: the pointer goes with the light
 
             // 2. The black hole journey. Its page is black until it starts, so revealing it is invisible.
             bool played = false;
@@ -126,27 +128,40 @@ public sealed class BreakRunner
                 // Fallback: if the black hole can't run, a calm countdown on the closed eyelids.
                 CloseCosmos();
                 await fallback();
-                await Tween(t => _s.Star = t, 1500, Sine);
             }
 
-            // Hand-off on the star: a pixel-exact snapshot of the web star goes under the web view, then the web
-            // view goes. Same pixels, same place, same brightness, so there's nothing to see.
-            if (played && _cosmos != null && await _cosmos.CaptureAsync() is { } snapshot)
-                _primary(primary)?.UseStarSnapshot(snapshot);
+            // Hand-off in pure darkness: the page ends black past the horizon, the closed lids underneath are
+            // black too, so removing the web view can't be seen.
             _journey = false;
-            _s.Star = 1;
+            _s.Vertical = true;   // a closed point: the lids stay fully shut until the third eye opens
             Draw();
             await Task.Delay(80);
             CloseCosmos();
+            OverlayWindow.RefreshCursor();
+            await Task.WhenAny(Task.WhenAll(_windows.Select(w => w.ArtReady)), Task.Delay(3000));
+            await Task.Delay(300);
 
-            // 3. The third eye opens from the star: a golden line grows out of it, opens into a vertical eye,
-            // then widens to reveal the screen. The star only ever changes brightness, never size.
-            _s.Vertical = true;
+            // 3. A white star is born in the darkness: a point of light, its glow spreading, then the lingam-shaped
+            // aura gathers around it and breathes, and the star flares. It only ever changes brightness, never size.
+            async Task AuraIn() { await Task.Delay(1300); await Tween(t => _s.Aura = t, 1800, Sine); }
+            var aura = AuraIn();
+            await Tween(t => _s.Star = t, 2200, Sine);
+            await Tween(t => _s.Flash = t, 380, Sine);
+            await Tween(t => _s.Flash = 1 - 0.65 * t, 1500, Sine);
+            await aura;
+            await Task.Delay(1500);
+
+            // 4. The third eye opens from the star: a golden line grows out of it, opens into a vertical eye,
+            // then widens to reveal the screen. The aura rings the opening eye until the screen is uncovered.
             await Tween(t => { _s.Len = t; _s.Glow = t; }, 1800, EaseInOut);
             await Task.Delay(500);
-            await Tween(t => { _s.Wid = t; _s.Star = 1 - 0.25 * t; }, 2000, EaseInOut);
+            await Tween(t => { _s.Wid = t; _s.Star = 1 - 0.2 * t; _s.Flash = 0.35 * (1 - 0.4 * t); }, 2000, EaseInOut);
             await Task.Delay(400);
-            await Tween(t => { _s.Grow = t; _s.Glow = 1 - t; _s.Star = 0.75 * (1 - t); }, 2600, EaseInOut);
+            await Tween(t =>
+            {
+                _s.Grow = t; _s.Glow = 1 - t; _s.Star = 0.8 * (1 - t);
+                _s.Aura = 1 - t; _s.Flash = 0.21 * (1 - t);
+            }, 2600, EaseInOut);
         }
         finally
         {
@@ -160,14 +175,6 @@ public sealed class BreakRunner
             _windows.Clear();
             Running = false;
         }
-    }
-
-    /// <summary>The eyelid window on the given monitor.</summary>
-    OverlayWindow? _primary(System.Windows.Forms.Screen screen)
-    {
-        var all = System.Windows.Forms.Screen.AllScreens;
-        int i = Array.FindIndex(all, s => s.DeviceName == screen.DeviceName);
-        return i >= 0 && i < _windows.Count ? _windows[i] : null;
     }
 
     void CloseCosmos()
@@ -192,11 +199,14 @@ public sealed class BreakRunner
     void Reset()
     {
         _s.Vertical = false; _s.P = 0; _s.Len = 0; _s.Wid = 0; _s.Grow = 0; _s.Glow = 0;
-        _s.Star = 0; _s.Flash = 0; _s.MessageOpacity = 0; _s.Countdown = 0;
+        _s.Star = 0; _s.Flash = 0; _s.Aura = 0; _s.MessageOpacity = 0; _s.Countdown = 0;
     }
+
+    readonly Stopwatch _clock = Stopwatch.StartNew();
 
     void Draw()
     {
+        _s.Time = _clock.Elapsed.TotalSeconds;
         // Hidden under the black hole, the eyelid windows don't need redrawing (saves CPU for a smooth journey).
         if (_journey) return;
         foreach (var w in _windows) w.Render(_s);
