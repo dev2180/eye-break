@@ -38,7 +38,7 @@ public sealed record StarArt(BitmapSource Core, BitmapSource Glow, BitmapSource 
         // about twice as high as it is wide: a full round dome on a straight, upright pillar with a flat base.
         // The star sits at its heart.
         // A bright golden outline, a soft inner glow and a faint pillar of light through the star.
-        int aw = (int)(0.6 * h), ah = (int)(0.8 * h);
+        int aw = (int)(0.8 * h), ah = (int)(1.0 * h);   // room for the aura to fade out fully before the edges
         var sdf = DhyanalingaField(aw, ah, top: -0.22 * h, height: 0.44 * h, halfWidth: 0.118 * h);
         double LingamS(double x, double y)
         {
@@ -62,13 +62,13 @@ public sealed record StarArt(BitmapSource Core, BitmapSource Glow, BitmapSource 
         var halo = Render(aw, ah, (x, y) =>
         {
             double s = LingamS(x, y);
-            double i = s > 0 ? 0.42 * Math.Exp(-s / (0.025 * h)) : 0.42 * Math.Exp(s / (0.012 * h)) * 0.6;
+            double i = s > 0 ? 1.1 * Math.Exp(-s / (0.03 * h)) : 1.1 * Math.Exp(s / (0.012 * h)) * 0.6;
             return (i, i * 0.76, i * 0.36);
         });
         var haloFar = Render(aw, ah, (x, y) =>
         {
             double s = LingamS(x, y);
-            double i = s > 0 ? 0.26 * Math.Exp(-s / (0.07 * h)) : 0.26 * Math.Exp(s / (0.03 * h)) * 0.5;
+            double i = s > 0 ? 0.7 * Math.Exp(-s / (0.06 * h)) : 0.7 * Math.Exp(s / (0.03 * h)) * 0.5;
             return (i, i * 0.80, i * 0.45);
         });
 
@@ -147,9 +147,10 @@ public sealed record StarArt(BitmapSource Core, BitmapSource Glow, BitmapSource 
             {
                 double x = i + 0.5 - hx;
                 var (r, g, b) = light(x, y);
-                double ex = Math.Max(Math.Abs(x) / hx, Math.Abs(y) / hy);
-                double edge = ex > 0.8 ? Math.Max(0, 1 - (ex - 0.8) / 0.2) : 1;
-                edge *= edge;
+                // Fade out in a soft oval, never along the image's square edges (those read as a box).
+                double ex = Math.Sqrt(Math.Pow(x / hx, 2) + Math.Pow(y / hy, 2));
+                double u = Math.Clamp((ex - 0.55) / 0.42, 0, 1);
+                double edge = 1 - u * u * (3 - 2 * u);
                 double n = rnd.NextDouble() - 0.5;
                 byte R = Byte((1 - Math.Exp(-r)) * edge, n), G = Byte((1 - Math.Exp(-g)) * edge, n), B = Byte((1 - Math.Exp(-b)) * edge, n);
                 int o = (j * w + i) * 4;

@@ -230,8 +230,9 @@ public sealed class OverlayWindow : Window
         _linga.Opacity = s.Aura;
         double near = 0.5 + 0.5 * br;
         double far = 0.5 + 0.5 * Math.Sin(2 * Math.PI * s.Time / Breath - 0.9);
-        _halo.Opacity = s.Aura * (0.35 + 0.65 * near);
-        _haloFar.Opacity = s.Aura * (0.2 + 0.8 * far);
+        // Each breath the aura blooms out fully and fades away completely, then blooms again.
+        _halo.Opacity = s.Aura * near * near;
+        _haloFar.Opacity = s.Aura * far * far;
 
         _msg.Opacity = s.MessageOpacity;
         _count.Text = s.Countdown.ToString();
