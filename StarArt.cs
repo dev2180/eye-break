@@ -5,11 +5,11 @@ namespace EyeBreak;
 
 /// <summary>
 /// The white star and its aura, rendered once per monitor size with real light falloff (a saturated point,
-/// a 1/r² tail, wide glow, thin diffraction spikes) and tone-mapped like a camera would. The overlay then only
-/// changes brightness, never the star's size; the aura alone breathes.
+/// a 1/r² tail, wide glow) and tone-mapped like a camera would, plus the fixed Dhyanalinga outline and the aura
+/// of light around it. The overlay only changes brightness; the linga's shape never changes.
 /// All images are premultiplied light on black, so drawn over the closed lids they add up like light.
 /// </summary>
-public sealed record StarArt(BitmapSource Core, BitmapSource Glow, BitmapSource Aura, BitmapSource Ripple, BitmapSource Bloom)
+public sealed record StarArt(BitmapSource Core, BitmapSource Glow, BitmapSource Linga, BitmapSource Halo, BitmapSource HaloFar, BitmapSource Bloom)
 {
     /// <summary>Builds every image for a monitor that is <paramref name="h"/> pixels tall. Safe on any thread.</summary>
     public static StarArt Build(int h)
@@ -46,22 +46,30 @@ public sealed record StarArt(BitmapSource Core, BitmapSource Glow, BitmapSource 
             return sdf[j * aw + i];
         }
         double line = 0.012 * h;
-        var aura = Render(aw, ah, (x, y) =>
+        // The linga itself never moves or changes: a crisp golden outline, a soft light inside, the pillar of light.
+        var linga = Render(aw, ah, (x, y) =>
         {
             double s = LingamS(x, y);
-            double shell = 0.75 * Math.Exp(-Math.Pow(s / line, 2));
-            double outer = 0.22 * Math.Exp(-Math.Abs(s) / (0.05 * h)) * (s > 0 ? 1 : 0.5);
+            double shell = 0.8 * Math.Exp(-Math.Pow(s / line, 2));
             double inner = s < 0 ? 0.16 * (1 - Math.Exp(s / (0.06 * h))) * Math.Exp(-(x * x + y * y) / Math.Pow(0.22 * h, 2)) : 0;
             double pillar = 0.4 * Math.Exp(-Math.Pow(x / (0.03 * h), 2)) * Math.Exp(-Math.Pow(y / (0.26 * h), 2));
-            double gold = shell + outer, white = inner + pillar;
-            return (gold * 1.0 + white, gold * 0.72 + white * 0.93, gold * 0.30 + white * 0.80);
+            double white = inner + pillar;
+            return (shell + white, shell * 0.72 + white * 0.93, shell * 0.30 + white * 0.80);
         });
 
-        var ripple = Render(aw, ah, (x, y) =>
+        // The aura around it: light radiating outward from the outline, in two layers (close and far).
+        // Only their brightness pulses, so the aura seems to swell and settle while the linga stays still.
+        var halo = Render(aw, ah, (x, y) =>
         {
             double s = LingamS(x, y);
-            double i = 0.6 * Math.Exp(-Math.Pow(s / (line * 0.8), 2)) + 0.14 * Math.Exp(-Math.Pow(s / (line * 3), 2));
-            return (i, i * 0.78, i * 0.42);
+            double i = s > 0 ? 0.42 * Math.Exp(-s / (0.025 * h)) : 0.42 * Math.Exp(s / (0.012 * h)) * 0.6;
+            return (i, i * 0.76, i * 0.36);
+        });
+        var haloFar = Render(aw, ah, (x, y) =>
+        {
+            double s = LingamS(x, y);
+            double i = s > 0 ? 0.26 * Math.Exp(-s / (0.07 * h)) : 0.26 * Math.Exp(s / (0.03 * h)) * 0.5;
+            return (i, i * 0.80, i * 0.45);
         });
 
         // A wide soft bloom for the flare, rendered small (it's smooth) and stretched by the overlay.
@@ -73,7 +81,7 @@ public sealed record StarArt(BitmapSource Core, BitmapSource Glow, BitmapSource 
             return (i, i * 0.95, i * 0.86);
         });
 
-        return new StarArt(core, glow, aura, ripple, bloom);
+        return new StarArt(core, glow, linga, halo, haloFar, bloom);
     }
 
     /// <summary>Half-width of the Dhyanalinga at height t (0 = crown, 1 = base), as a fraction of its widest half.</summary>

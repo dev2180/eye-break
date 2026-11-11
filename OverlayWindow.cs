@@ -36,8 +36,8 @@ public sealed class OverlayWindow : Window
     readonly System.Drawing.Rectangle _bounds;
     readonly Path _lid, _rim, _gold;
     readonly Grid _starLayer = new() { IsHitTestVisible = false };
-    readonly Image _bloom = Sprite(), _aura = Sprite(), _ripple1 = Sprite(), _ripple2 = Sprite(), _glow = Sprite(), _core = Sprite();
-    readonly ScaleTransform _auraScale = new(1, 1), _r1Scale = new(1, 1), _r2Scale = new(1, 1), _coreScale = new(0.02, 0.02), _glowScale = new(0.02, 0.02);
+    readonly Image _bloom = Sprite(), _linga = Sprite(), _halo = Sprite(), _haloFar = Sprite(), _glow = Sprite(), _core = Sprite();
+    readonly ScaleTransform _coreScale = new(0.02, 0.02), _glowScale = new(0.02, 0.02);
     readonly TaskCompletionSource _art = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>Completes once the star and aura images for this monitor are rendered.</summary>
@@ -81,9 +81,6 @@ public sealed class OverlayWindow : Window
             Effect = new DropShadowEffect { Color = Gold, BlurRadius = 28, ShadowDepth = 0, Opacity = 1 },
             Opacity = 0,
         };
-        _aura.RenderTransform = _auraScale;
-        _ripple1.RenderTransform = _r1Scale;
-        _ripple2.RenderTransform = _r2Scale;
         _core.RenderTransform = _coreScale;
         _glow.RenderTransform = _glowScale;
 
@@ -98,7 +95,7 @@ public sealed class OverlayWindow : Window
         var root = new Grid { Background = Brushes.Transparent };
         root.Children.Add(_lid);
         root.Children.Add(_rim);
-        foreach (var img in new[] { _bloom, _aura, _ripple1, _ripple2, _glow, _core })
+        foreach (var img in new[] { _bloom, _haloFar, _halo, _linga, _glow, _core })
             _starLayer.Children.Add(img);
         root.Children.Add(_starLayer);
         root.Children.Add(_gold);
@@ -135,10 +132,10 @@ public sealed class OverlayWindow : Window
                 img.Width = b.PixelWidth * sizeK / scale;
                 img.Height = b.PixelHeight * sizeK / scale;
             }
-            Set(_core, art.Core); Set(_glow, art.Glow); Set(_aura, art.Aura);
-            Set(_ripple1, art.Ripple); Set(_ripple2, art.Ripple);
+            Set(_core, art.Core); Set(_glow, art.Glow); Set(_linga, art.Linga);
+            Set(_halo, art.Halo); Set(_haloFar, art.HaloFar);
             Set(_bloom, art.Bloom, 1.6 * _bounds.Height / art.Bloom.PixelHeight);
-            foreach (var img in new[] { _core, _glow, _aura, _ripple1, _ripple2, _bloom })
+            foreach (var img in new[] { _core, _glow, _linga, _halo, _haloFar, _bloom })
                 RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
         }
         catch (Exception ex) { GammaDimmer.Log("star art failed: " + ex.Message); }
@@ -228,24 +225,16 @@ public sealed class OverlayWindow : Window
         _glow.Opacity = Math.Clamp((s.Star - 0.15) / 0.85, 0, 1) * (0.86 + 0.14 * br * s.Aura);
         _bloom.Opacity = Math.Clamp(s.Flash, 0, 1) * (0.9 + 0.1 * br);
 
-        // The lingam aura swells and settles with each breath, and a shell of light ripples outwards from it.
-        _aura.Opacity = s.Aura * (0.78 + 0.22 * br);
-        _auraScale.ScaleX = 1 + 0.035 * br;
-        _auraScale.ScaleY = 1 + 0.05 * br;
-        Ripple(_ripple1, _r1Scale, s.Time / Breath, s.Aura);
-        Ripple(_ripple2, _r2Scale, s.Time / Breath + 0.5, s.Aura);
+        // The linga stays perfectly still. Its aura breathes: the close glow brightens on the in-breath, and the
+        // far glow follows a moment later, so the light seems to pour outward and settle back.
+        _linga.Opacity = s.Aura;
+        double near = 0.5 + 0.5 * br;
+        double far = 0.5 + 0.5 * Math.Sin(2 * Math.PI * s.Time / Breath - 0.9);
+        _halo.Opacity = s.Aura * (0.35 + 0.65 * near);
+        _haloFar.Opacity = s.Aura * (0.2 + 0.8 * far);
 
         _msg.Opacity = s.MessageOpacity;
         _count.Text = s.Countdown.ToString();
-    }
-
-    static void Ripple(Image img, ScaleTransform sc, double phase, double aura)
-    {
-        double p = phase - Math.Floor(phase);          // 0..1 through one breath
-        double sz = 0.9 + 0.75 * p;
-        sc.ScaleX = sz; sc.ScaleY = sz * (1 + 0.04 * p);
-        double fade = Math.Sin(Math.PI * Math.Min(1, p * 1.25));
-        img.Opacity = aura * 0.7 * fade * fade * (1 - p);
     }
 
     static PathFigure Figure(Point start, bool closed, params PathSegment[] segs)
