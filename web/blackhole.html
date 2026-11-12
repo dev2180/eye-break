@@ -505,6 +505,8 @@ const sine=t=>-(Math.cos(Math.PI*t)-1)/2;
 function tw(set,ms,e=sine){return new Promise(r=>{const s=performance.now();(function f(n){const t=Math.min(1,(n-s)/ms);set(e(t));t<1?requestAnimationFrame(f):r()})(s)})}
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const post=m=>{try{window.chrome.webview.postMessage(m)}catch(e){console.log('host:',m)}};
+onerror=(m,src,l,c,e)=>post('page error: '+m+' @'+l+':'+c+(e&&e.stack?' '+e.stack:''));
+onunhandledrejection=e=>post('page error: '+(e.reason&&e.reason.stack||e.reason));
 
 // The black hole journey for `seconds`, then a white star born at the centre.
 // Tells the app "done" when the star is at full flare, so the third eye can open from it.

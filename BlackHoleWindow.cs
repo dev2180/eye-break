@@ -70,7 +70,7 @@ public sealed class BlackHoleWindow : Window
             string msg = e.TryGetWebMessageAsString();
             if (msg == "ready") _ready.TrySetResult();
             else if (msg == "done") _done?.TrySetResult();
-            else if (msg.StartsWith("music:")) GammaDimmer.Log(msg);   // which song played, or why it couldn't
+            else if (msg.StartsWith("music:") || msg.StartsWith("page error:")) GammaDimmer.Log(msg);   // which song played, or why it couldn't
             else if (msg.StartsWith("search:")) _ = SearchAsync(msg["search:".Length..]);
         };
         // Served from a local https address (not file://) so YouTube's embedded player accepts it.

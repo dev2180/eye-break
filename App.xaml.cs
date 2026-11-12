@@ -36,7 +36,8 @@ public partial class App : Application
         // Never leave a screen dark: repair if a previous run was killed mid-break, and restore on any exit or crash.
         GammaDimmer.RecoverIfNeeded();
         AppDomain.CurrentDomain.ProcessExit += (_, _) => { GammaDimmer.End(); KeyBlocker.Stop(); };
-        AppDomain.CurrentDomain.UnhandledException += (_, _) => GammaDimmer.End();
+        AppDomain.CurrentDomain.UnhandledException += (_, ex) => { GammaDimmer.End(); GammaDimmer.Log("crash: " + ex.ExceptionObject); };
+        TaskScheduler.UnobservedTaskException += (_, ex) => { GammaDimmer.Log("task error: " + ex.Exception); ex.SetObserved(); };
         // A tray app should never just disappear: log unexpected UI errors and keep running.
         DispatcherUnhandledException += (_, ex) =>
         {

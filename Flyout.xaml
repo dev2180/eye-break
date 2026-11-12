@@ -369,6 +369,7 @@
             <Border Height="1" Background="{StaticResource Line}" Margin="0,14,0,8"/>
             <DockPanel>
                 <Button Style="{StaticResource GhostButton}" Content="Quit Eye Break" Click="Quit_Click" DockPanel.Dock="Left" Margin="-8,0,0,0"/>
+                <Button Style="{StaticResource GhostButton}" Content="Report" Click="Report_Click" ToolTip="Mark this moment in the log and open it" HorizontalAlignment="Center"/>
                 <Button x:Name="SettingsToggle" Style="{StaticResource GhostButton}" Content="Settings ▾" Click="SettingsToggle_Click" HorizontalAlignment="Right" Margin="0,0,-8,0"/>
             </DockPanel>
         </StackPanel>

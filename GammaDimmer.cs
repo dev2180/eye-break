@@ -32,7 +32,7 @@ public static class GammaDimmer
     static readonly List<Display> _displays = new();
     static readonly string Folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "EyeBreak");
     static readonly string Marker = Path.Combine(Folder, "dimmed.flag");
-    static readonly string LogFile = Path.Combine(Folder, "log.txt");
+    public static readonly string LogFile = Path.Combine(Folder, "log.txt");
 
     public static bool Active => _displays.Count > 0;
 

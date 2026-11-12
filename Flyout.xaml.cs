@@ -153,5 +153,11 @@ public partial class Flyout : Window
 
     void Autostart_Click(object sender, RoutedEventArgs e) => Autostart.Set(AutostartSwitch.IsChecked == true);
     void Hide_Click(object sender, RoutedEventArgs e) => _app.SetHideFromShare(HideSwitch.IsChecked == true);
+    void Report_Click(object sender, RoutedEventArgs e)
+    {
+        // ponytail: a marker in the local log is the whole report; Claude reads %APPDATA%\EyeBreak\log.txt
+        GammaDimmer.Log("=== REPORTED by user ===");
+        System.Diagnostics.Process.Start("notepad.exe", GammaDimmer.LogFile);
+    }
     void Quit_Click(object sender, RoutedEventArgs e) { SafeClose(); _app.Shutdown(); }
 }
