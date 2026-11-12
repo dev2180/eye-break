@@ -255,6 +255,8 @@
             <DropShadowEffect BlurRadius="30" ShadowDepth="8" Opacity="0.6" Color="Black"/>
         </Border.Effect>
 
+        <!-- ponytail: hidden scrollbar, the mouse wheel still scrolls when the panel is taller than the screen -->
+        <ScrollViewer VerticalScrollBarVisibility="Hidden">
         <StackPanel Margin="22,18,22,14">
             <!-- Header: logo and name -->
             <DockPanel>
@@ -370,5 +372,6 @@
                 <Button x:Name="SettingsToggle" Style="{StaticResource GhostButton}" Content="Settings ▾" Click="SettingsToggle_Click" HorizontalAlignment="Right" Margin="0,0,-8,0"/>
             </DockPanel>
         </StackPanel>
+        </ScrollViewer>
     </Border>
 </Window>

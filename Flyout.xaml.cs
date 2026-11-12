@@ -16,6 +16,7 @@ public partial class Flyout : Window
     {
         InitializeComponent();
         _app = app;
+        MaxHeight = SystemParameters.WorkArea.Height;   // never taller than the screen; the rest scrolls
         AutostartSwitch.IsChecked = Autostart.IsEnabled;
         HideSwitch.IsChecked = app.Settings.HideFromScreenShare;
         LinkBox.Text = app.Settings.CustomMusic;
