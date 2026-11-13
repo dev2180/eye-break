@@ -83,6 +83,7 @@ public static class Logo
         Square("Square44x44Logo.targetsize-256_altform-unplated.png", 256);
         Square("Square150x150Logo.png", 150);
         Square("StoreLogo.png", 50);
+        Square("StoreTile300.png", 300);   // Partner Center's "1:1 App tile icon" (not packaged)
         using var wide = new Drawing.Bitmap(310, 150);
         using (var g = Drawing.Graphics.FromImage(wide))
         using (var mark = Render(150))

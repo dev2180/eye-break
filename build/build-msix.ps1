@@ -25,6 +25,7 @@ if ($LASTEXITCODE) { throw 'Publishing Eye Break failed' }
 $deadline = (Get-Date).AddSeconds(30)
 while (-not (Test-Path "$app\Images\Wide310x150Logo.png") -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 300 }
 if (-not (Test-Path "$app\Images\Wide310x150Logo.png")) { throw 'Writing the Store images failed' }
+Move-Item "$app\Images\StoreTile300.png" "$root\artifacts\StoreTile300.png" -Force -ErrorAction SilentlyContinue   # for Partner Center, not the package
 
 (Get-Content "$PSScriptRoot\msix\AppxManifest.xml" -Raw).
     Replace('$NAME$', $id.Name).Replace('$PUBLISHER_DISPLAY_NAME$', $id.PublisherDisplayName).
