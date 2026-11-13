@@ -48,6 +48,7 @@ public sealed class BlackHoleWindow : Window
             SetWindowPos(_hwnd, HWND_TOPMOST, -32000, -32000, _bounds.Width, _bounds.Height, SWP_NOACTIVATE);
         };
         Closing += (_, e) => { if (!AllowClose) e.Cancel = true; };
+        Closed += (_, _) => _web.Dispose();   // shuts the browser down, so music can't outlive the window (e.g. Num Lock + 8)
     }
 
     /// <summary>Starts the browser view and loads the page. Completes when the page says it's ready.</summary>
@@ -70,6 +71,8 @@ public sealed class BlackHoleWindow : Window
             string msg = e.TryGetWebMessageAsString();
             if (msg == "ready") _ready.TrySetResult();
             else if (msg == "done") _done?.TrySetResult();
+            else if (msg == "timeup") TimeUp?.Invoke();
+            else if (msg.StartsWith("timer:") && int.TryParse(msg[6..], out int m)) TimerChanged?.Invoke(m);
             else if (msg.StartsWith("music:") || msg.StartsWith("page error:")) GammaDimmer.Log(msg);   // which song played, or why it couldn't
             else if (msg.StartsWith("search:")) _ = SearchAsync(msg["search:".Length..]);
         };
@@ -101,6 +104,11 @@ public sealed class BlackHoleWindow : Window
         string json = System.Text.Json.JsonSerializer.Serialize(results);
         try { await _web.CoreWebView2.ExecuteScriptAsync($"searchResults({json})"); } catch { }
     }
+
+    /// <summary>The session timer ran out (after its closing chime).</summary>
+    public Action? TimeUp;
+    /// <summary>The session timer was changed on the page, in minutes.</summary>
+    public static Action<int>? TimerChanged;
 
     /// <summary>Infinite mode: float by the black hole with music and quotes. Returns at once; ends with EndInfiniteAsync.</summary>
     public Task StartInfiniteAsync(string optionsJson) => _web.CoreWebView2.ExecuteScriptAsync($"infinite({optionsJson})");

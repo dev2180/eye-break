@@ -48,6 +48,7 @@ public sealed class BreakRunner
             await RunCore(hideFromCapture,
                 async cosmos =>
                 {
+                    cosmos.TimeUp = () => esc.TrySetResult();
                     await cosmos.StartInfiniteAsync(await optionsJson);
                     await esc.Task;
                     KeyBlocker.OnEscape = null;
@@ -72,6 +73,8 @@ public sealed class BreakRunner
             if (ForceDim || Fullscreen.IsExclusive())
                 GammaDimmer.Begin();
 
+            _abort = new CancellationTokenSource();
+            KeyBlocker.OnAbort = () => _abort.Cancel();   // Num Lock + numpad 8: stop this break now
             KeyBlocker.Start(); // no Start menu or Alt+Tab pulling things over the break; typing still reaches your app
 
             foreach (var screen in System.Windows.Forms.Screen.AllScreens)
@@ -98,15 +101,15 @@ public sealed class BreakRunner
 
             Reset();
             CompositionTarget.Rendering += onFrame;
-            await Task.Delay(300);
+            await Task.Delay(300, _abort.Token);
 
             // 1. Settling into meditation: two slow, heavy half-closes, then a long gentle close.
             await Lids(0.55, 1400);
             await Lids(0.15, 1600);
-            await Task.Delay(1200);
+            await Task.Delay(1200, _abort.Token);
             await Lids(0.75, 1800);
             await Lids(0.40, 1600);
-            await Task.Delay(900);
+            await Task.Delay(900, _abort.Token);
             await Lids(1.0, 3500);
             OverlayWindow.RefreshCursor();   // eyes shut: the pointer goes with the light
 
@@ -118,10 +121,10 @@ public sealed class BreakRunner
                 {
                     _cosmos.Reveal();
                     _journey = true;
-                    played = await journey(_cosmos);
+                    played = await journey(_cosmos).WaitAsync(_abort.Token);
                 }
             }
-            catch (Exception ex) { GammaDimmer.Log("black hole failed: " + ex.Message); }
+            catch (Exception ex) when (ex is not OperationCanceledException) { GammaDimmer.Log("black hole failed: " + ex.Message); }
 
             if (!played)
             {
@@ -135,36 +138,38 @@ public sealed class BreakRunner
             _journey = false;
             _s.Vertical = true;   // a closed point: the lids stay fully shut until the third eye opens
             Draw();
-            await Task.Delay(80);
+            await Task.Delay(80, _abort.Token);
             CloseCosmos();
             OverlayWindow.RefreshCursor();
             await Task.WhenAny(Task.WhenAll(_windows.Select(w => w.ArtReady)), Task.Delay(3000));
-            await Task.Delay(300);
+            await Task.Delay(300, _abort.Token);
 
             // 3. A white star is born in the darkness: a point of light, its glow spreading, then the lingam-shaped
             // aura gathers around it and breathes, and the star flares. It only ever changes brightness, never size.
-            async Task AuraIn() { await Task.Delay(1300); await Tween(t => _s.Aura = t, 1800, Sine); }
+            async Task AuraIn() { await Task.Delay(1300, _abort.Token); await Tween(t => _s.Aura = t, 1800, Sine); }
             var aura = AuraIn();
             await Tween(t => { _s.Star = t; _s.Birth = t; }, 2600, t => t);
             await Tween(t => _s.Flash = t, 380, Sine);
             await Tween(t => _s.Flash = 1 - 0.65 * t, 1500, Sine);
             await aura;
-            await Task.Delay(1500);
+            await Task.Delay(1500, _abort.Token);
 
             // 4. The third eye opens from the star: a golden line grows out of it, opens into a vertical eye,
             // then widens to reveal the screen. The aura rings the opening eye until the screen is uncovered.
             await Tween(t => { _s.Len = t; _s.Glow = t; }, 1800, EaseInOut);
-            await Task.Delay(500);
+            await Task.Delay(500, _abort.Token);
             await Tween(t => { _s.Wid = t; _s.Star = 1 - 0.2 * t; _s.Flash = 0.35 * (1 - 0.4 * t); }, 2000, EaseInOut);
-            await Task.Delay(400);
+            await Task.Delay(400, _abort.Token);
             await Tween(t =>
             {
                 _s.Grow = t; _s.Glow = 1 - t; _s.Star = 0.8 * (1 - t);
                 _s.Aura = 1 - t; _s.Flash = 0.21 * (1 - t);
             }, 2600, EaseInOut);
         }
+        catch (OperationCanceledException) { GammaDimmer.Log("break stopped early (Num Lock + 8)"); }
         finally
         {
+            KeyBlocker.OnAbort = null;
             CompositionTarget.Rendering -= onFrame;
             _journey = false;
             KeyBlocker.Stop();
@@ -185,13 +190,15 @@ public sealed class BreakRunner
         _cosmos = null;
     }
 
+    static CancellationTokenSource _abort = new();
+
     async Task CountdownFallback(int seconds)
     {
         _ = Tween(t => _s.MessageOpacity = t, 1200, Sine);
         for (int i = seconds; i > 0; i--)
         {
             _s.Countdown = i;
-            await Task.Delay(1000);
+            await Task.Delay(1000, _abort.Token);
         }
         await Tween(t => _s.MessageOpacity = 1 - t, 800, Sine);
     }
@@ -231,6 +238,12 @@ public sealed class BreakRunner
         onFrame = (_, _) =>
         {
             double t = Math.Min(1, clock.Elapsed.TotalMilliseconds / ms);
+            if (_abort.IsCancellationRequested)
+            {
+                CompositionTarget.Rendering -= onFrame;
+                done.TrySetCanceled();
+                return;
+            }
             set(ease(t));
             if (t >= 1)
             {

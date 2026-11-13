@@ -24,6 +24,9 @@ public static class KeyBlocker
 
     /// <summary>Set during infinite mode: Esc is caught (from any app) and ends the session.</summary>
     public static volatile Action? OnEscape;
+    /// <summary>Set during every break: Num Lock on + numpad 8 stops the break at once.</summary>
+    public static volatile Action? OnAbort;
+    const int VK_NUMPAD8 = 0x68;   // only sent while Num Lock is on
     const int WM_KEYDOWN = 0x100;
     static Thread? _thread;
     static uint _threadId;
@@ -67,6 +70,12 @@ public static class KeyBlocker
             {
                 if ((int)wParam == WM_KEYDOWN) ThreadPool.QueueUserWorkItem(_ => esc());
                 return 1; // swallow, so Esc doesn't also close something in the app underneath
+            }
+
+            if (vk == VK_NUMPAD8 && OnAbort is { } abort)
+            {
+                if ((int)wParam == WM_KEYDOWN) ThreadPool.QueueUserWorkItem(_ => abort());
+                return 1;
             }
 
             if (vk is VK_LWIN or VK_RWIN

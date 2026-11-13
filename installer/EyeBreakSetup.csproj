@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The installer targets .NET Framework 4.8, which ships with every Windows 10/11 PC,
+       so it runs anywhere with nothing to install first. The app itself is appended to the
+       built exe by build-installer.ps1. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>EyeBreakSetup</AssemblyName>
+    <RootNamespace>EyeBreakSetup</RootNamespace>
+    <ApplicationIcon>..\Assets\eye.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+    <Reference Include="Microsoft.CSharp" />
+    <Resource Include="..\Assets\eye.ico" Link="eye.ico" />
+  </ItemGroup>
+
+</Project>

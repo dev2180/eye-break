@@ -66,6 +66,7 @@ public partial class Flyout : Window
         Arc.Data = ArcGeometry(s.Fraction);
         IntervalText.Text = $"{_app.Settings.IntervalMinutes} min";
         SecondsText.Text = $"{_app.Settings.BreakSeconds} sec";
+        TimerText.Text = _app.Settings.SessionMinutes == 0 ? "Off" : $"{_app.Settings.SessionMinutes} min";
     }
 
     /// <summary>A clockwise arc starting at 12 o'clock, covering `fraction` of the ring.</summary>
@@ -106,6 +107,9 @@ public partial class Flyout : Window
 
     void SecondsDown(object sender, RoutedEventArgs e) { _app.SetTiming(_app.Settings.IntervalMinutes, Math.Max(10, _app.Settings.BreakSeconds - 5)); Refresh(); }
     void SecondsUp(object sender, RoutedEventArgs e) { _app.SetTiming(_app.Settings.IntervalMinutes, Math.Min(120, _app.Settings.BreakSeconds + 5)); Refresh(); }
+
+    void TimerDown(object sender, RoutedEventArgs e) { _app.SetSessionMinutes(_app.Settings.SessionMinutes - 5); Refresh(); }
+    void TimerUp(object sender, RoutedEventArgs e) { _app.SetSessionMinutes(_app.Settings.SessionMinutes + 5); Refresh(); }
 
     bool _loadingMusic;
 

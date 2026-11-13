@@ -77,6 +77,8 @@ body.pointer{cursor:default}
   font-size:17px;line-height:1;color:rgba(255,214,160,.8)}
 #results .r .x:hover{background:rgba(240,179,92,.2);color:#ffd9a0}
 #bar2 button.on{color:#ffd9a0}
+#bar2 .tm{min-width:58px;text-align:center;font-size:13.5px;font-variant-numeric:tabular-nums;color:#f6efe4;cursor:default}
+#bar2 button.sm{width:24px;font-size:16px}
 #results .msg{padding:14px;font-size:13px;color:rgba(246,239,228,.55);text-align:center}
 #player{position:fixed;left:-400px;top:0;width:200px;height:120px;opacity:0;pointer-events:none}
 #err{position:fixed;inset:0;display:none;align-items:center;justify-content:center;color:#f09595;font-size:15px}
@@ -104,6 +106,8 @@ body.pointer{cursor:default}
   <button id="bPlay" title="Pause"><svg viewBox="0 0 24 24"><path id="playIcon" d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></button>
   <button id="bNext" title="Next song"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l10.5-7z"/></svg></button>
   <div class="now"><b id="nowStation">Interstellar</b><span id="nowTitle">Loading…</span></div>
+  <div class="sep"></div>
+  <button class="sm" id="tDown" title="5 minutes less">−</button><span class="tm" id="tLeft" title="Session timer: ends with a chime">∞</span><button class="sm" id="tUp" title="5 minutes more">+</button>
   <div class="sep"></div>
   <button id="bMode" title="Plays the next song when one ends"><svg viewBox="0 0 24 24"><path id="modeIcon" d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg></button>
   <button id="bLib" title="Stations and my playlist"><svg viewBox="0 0 24 24"><path d="M3 6h12v2H3zm0 5h12v2H3zm0 5h8v2H3zm14-10h4v2h-2v8.5a2.5 2.5 0 1 1-2-2.45z"/></svg></button>
@@ -748,7 +752,33 @@ function searchResults(list){
   });
 }
 
-// opts: { stations:[{name,music}], station:index, quotes:[{q,a}], credit }
+// Session timer: a bell rings when it starts and when it ends; the end returns you like Esc.
+let tEnd=0,tTick=0,actx=null;
+function chime(){
+  // a soft singing-bowl bell, synthesized: a few inharmonic partials with long decays
+  try{actx=actx||new AudioContext();const t=actx.currentTime,out=actx.createGain();out.gain.value=.22;out.connect(actx.destination);
+    [[220,1,6],[440*1.003,.5,4.5],[660*1.01,.28,3.2],[1170,.12,2]].forEach(([f,a,d])=>{const o=actx.createOscillator(),g=actx.createGain();
+      o.frequency.value=f;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(a,t+.015);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+      o.connect(g).connect(out);o.start(t);o.stop(t+d)})}catch(e){}
+}
+const tLeft=document.getElementById('tLeft');
+function setTimer(min,silent){
+  clearInterval(tTick);min=Math.max(0,Math.min(180,min));
+  const was=tEnd;tEnd=min?Date.now()+min*60000:0;post('timer:'+min);
+  if(tEnd&&!was&&!silent)chime();
+  if(tEnd)tTick=setInterval(drawTimer,1000);drawTimer();
+}
+function drawTimer(){
+  if(!tEnd){tLeft.textContent='∞';return}
+  const s=Math.max(0,Math.ceil((tEnd-Date.now())/1000));
+  tLeft.textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+  if(s===0&&INF){clearInterval(tTick);tEnd=0;chime();setTimeout(()=>post('timeup'),2500)}
+}
+const tMin=()=>tEnd?Math.ceil((tEnd-Date.now())/60000):0;
+document.getElementById('tUp').onclick=()=>{setTimer(Math.ceil(tMin()/5)*5+5);showBar()};
+document.getElementById('tDown').onclick=()=>{const m=tMin();setTimer(m>5?Math.ceil(m/5)*5-5:0);showBar()};
+
+// opts: { stations:[{name,music}], station:index, quotes:[{q,a}], credit, timer:minutes (0 = until Esc) }
 async function infinite(opts){
   resize();
   INF=true;infT=0;QUIET=true;sink=null;
@@ -764,12 +794,13 @@ async function infinite(opts){
   stations=opts.stations||[];
   saveMine();   // adds "My playlist" as a station when it has songs
   playStation(opts.station||0);
+  if(opts.timer){tEnd=0;setTimeout(()=>setTimer(opts.timer),1200)}else{tEnd=0;drawTimer()}
 }
 
 // Esc: the music fades while you fall into the black hole, then the white star is born.
 async function endInfinite(){
   if(!INF)return;
-  INF=false;clearTimeout(quoteTimer);clearTimeout(barTimer);
+  INF=false;clearTimeout(quoteTimer);clearTimeout(barTimer);clearInterval(tTick);
   bar.classList.remove('on');searchEl.classList.remove('on');document.body.classList.remove('pointer');
   quoteEl.classList.remove('on');escEl.classList.remove('on');creditEl.classList.remove('on');
   if(player)fadeVolume(0,5500).then(()=>{try{player.stopVideo()}catch(e){}});

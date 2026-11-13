@@ -330,6 +330,14 @@
                 <RadioButton Style="{StaticResource RadioChip}" Content="Calm (built-in)" Tag="calm" Checked="Quotes_Checked"/>
                 <RadioButton Style="{StaticResource RadioChip}" Content="ZenQuotes" Tag="zen" Checked="Quotes_Checked"/>
             </WrapPanel>
+            <DockPanel Margin="0,6,0,8">
+                <TextBlock Text="TIMER" Style="{StaticResource SectionLabel}" VerticalAlignment="Center" Margin="0"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" ToolTip="A chime starts and ends the session">
+                    <Button Style="{StaticResource StepButton}" Content="−" Click="TimerDown"/>
+                    <TextBlock x:Name="TimerText" Text="Off" Foreground="{StaticResource Ink}" FontSize="13.5" Width="62" TextAlignment="Center" VerticalAlignment="Center"/>
+                    <Button Style="{StaticResource StepButton}" Content="+" Click="TimerUp"/>
+                </StackPanel>
+            </DockPanel>
             <Button Style="{StaticResource OutlineButton}" Content="Enter infinite mode" Click="Infinite_Click" Margin="0,4,0,0"/>
             <TextBlock Text="Press Esc to return whenever you're ready" Foreground="{StaticResource Faint}" FontSize="11" HorizontalAlignment="Center" Margin="0,8,0,0"/>
 

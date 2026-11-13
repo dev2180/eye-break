@@ -28,6 +28,17 @@ bin\Release\net9.0-windows\EyeBreak.exe
 
 Testing flags: `--break-now`, `--infinite-now`, `--show-panel`, `--show-in-capture`, `--force-dim`.
 
+## Installer
+
+```
+powershell -ExecutionPolicy Bypass -File build-installer.ps1
+```
+
+This makes `dist\EyeBreak-Setup.exe`, a single file anyone can run. It needs no admin rights and no .NET install,
+because the app and its runtime are packed inside. It installs to `%LOCALAPPDATA%\Programs\EyeBreak` and adds a Start
+menu shortcut, an optional desktop shortcut, an optional start-with-Windows entry, and an uninstaller listed in
+Settings › Apps › Installed apps.
+
 ## Notes
 
 - Ctrl+Alt+Del → Task Manager can always end the app. If the screen ever stays dim, Win+Ctrl+Shift+B resets it.

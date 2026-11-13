@@ -49,6 +49,7 @@ public partial class App : Application
         BreakRunner.ShowInCapture = e.Args.Contains("--show-in-capture");
 
         Settings = Settings.Load();
+        BlackHoleWindow.TimerChanged = m => Dispatcher.BeginInvoke(() => SetSessionMinutes(m));
         _nextBreak = DateTime.Now + Interval;
         BuildTray();
 
@@ -140,8 +141,10 @@ public partial class App : Application
     {
         var (quotes, credit) = await Infinite.GetQuotesAsync(Settings.Quotes);
         var (stations, station) = Infinite.StationsFor(Settings);
-        return System.Text.Json.JsonSerializer.Serialize(new { stations, station, quotes, credit });
+        return System.Text.Json.JsonSerializer.Serialize(new { stations, station, quotes, credit, timer = Settings.SessionMinutes });
     }
+
+    public void SetSessionMinutes(int m) { Settings.SessionMinutes = Math.Clamp(m, 0, 180); Settings.Save(); }
 
     public void SetMusic(string key, string? custom = null)
     {
