@@ -16,6 +16,14 @@ namespace EyeBreakSetup
             InitializeComponent();
             PathBox.Text = Installer.DefaultDir;
             FooterText.Text = $"v{Installer.Version}  ·  installs for you only, no admin needed";
+            Music.Start();
+            Closed += (_, __) => Music.Stop();
+        }
+
+        void MusicBtn_Click(object sender, RoutedEventArgs e)
+        {
+            Music.Toggle();
+            MusicBtn.Opacity = Music.On ? 1 : 0.35;
         }
 
         void Drag(object sender, MouseButtonEventArgs e)
