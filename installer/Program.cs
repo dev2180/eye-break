@@ -11,7 +11,7 @@ namespace EyeBreakSetup
         {
             var app = new Application();
             if (args.Any(a => a.Equals("/uninstall", StringComparison.OrdinalIgnoreCase))) Installer.Uninstall();
-            else app.Run(new MainWindow());
+            else app.Run(new MainWindow(args.Any(a => a.Equals("/update", StringComparison.OrdinalIgnoreCase))));
         }
     }
 }

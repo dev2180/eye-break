@@ -10,12 +10,23 @@ namespace EyeBreakSetup
     {
         bool _finished;
         string _dir;
+        readonly bool _update;
 
-        public MainWindow()
+        /// <param name="update">Started by the app's Update button: keep the current folder and choices, install
+        /// straight away, then reopen Eye Break.</param>
+        public MainWindow(bool update = false)
         {
             InitializeComponent();
-            PathBox.Text = Installer.DefaultDir;
+            _update = update;
+            PathBox.Text = Installer.InstalledDir ?? Installer.DefaultDir;
             FooterText.Text = $"v{Installer.Version}  ·  installs for you only, no admin needed";
+            if (update)
+            {
+                DesktopBox.IsChecked = Installer.HasDesktopShortcut;
+                StartupBox.IsChecked = Installer.StartsWithWindows;
+                LaunchBox.IsChecked = true;
+                Loaded += (_, __) => InstallBtn_Click(InstallBtn, null);
+            }
             Music.Start();
             Closed += (_, __) => Music.Stop();
         }
@@ -61,7 +72,7 @@ namespace EyeBreakSetup
             var progress = new Progress<(double done, string file)>(p =>
             {
                 Bar.Value = p.done * 100;
-                StatusText.Text = $"Installing…  {p.done:P0}";
+                StatusText.Text = $"{(_update ? "Updating" : "Installing")}…  {p.done:P0}";
                 FileText.Text = p.file;
             });
 
@@ -75,6 +86,15 @@ namespace EyeBreakSetup
                                 " Remove it any time from Settings › Apps › Installed apps.";
                 InstallBtn.Content = "FINISH";
                 _finished = true;
+                if (_update)
+                {
+                    StatusText.Text = $"Eye Break is updated to {Installer.Version}";
+                    FileText.Text = "Opening it again…";
+                    await Task.Delay(1500);
+                    Installer.Launch(dir);
+                    Close();
+                    return;
+                }
             }
             catch (Exception ex)
             {

@@ -13,6 +13,8 @@ public partial class App : Application
     Flyout? _flyout;
     readonly BreakRunner _runner = new();
     readonly DispatcherTimer _tick = new() { Interval = TimeSpan.FromSeconds(1) };
+    readonly DispatcherTimer _updateTimer = new() { Interval = TimeSpan.FromHours(12) };
+    Version? _announced;
 
     DateTime _nextBreak;
     DateTime? _pausedUntil;
@@ -56,6 +58,20 @@ public partial class App : Application
         SystemEvents.SessionSwitch += OnSessionSwitch;
         _tick.Tick += (_, _) => Tick();
         _tick.Start();
+
+        // Look for a new version now and twice a day; say so once per version.
+        if (e.Args.Contains("--pretend-old")) Updater.Current = new Version(0, 0, 0);
+        Updater.Changed += () =>
+        {
+            if (Updater.Available is { } u && u.Version != _announced)
+            {
+                _announced = u.Version;
+                _tray?.ShowBalloonTip(8000, "Eye Break update", $"Version {u.Version} is ready. Open the Eye Break panel to update.", Forms.ToolTipIcon.Info);
+            }
+        };
+        _ = Updater.CheckAsync();
+        _updateTimer.Tick += (_, _) => _ = Updater.CheckAsync();
+        _updateTimer.Start();
 
         if (e.Args.Contains("--show-panel"))
             Dispatcher.BeginInvoke(ToggleFlyout, DispatcherPriority.ApplicationIdle);
@@ -142,6 +158,14 @@ public partial class App : Application
         var (quotes, credit) = await Infinite.GetQuotesAsync(Settings.Quotes);
         var (stations, station) = Infinite.StationsFor(Settings);
         return System.Text.Json.JsonSerializer.Serialize(new { stations, station, quotes, credit, timer = Settings.SessionMinutes });
+    }
+
+    /// <summary>Downloads and starts the new setup, then quits so it can replace the files.</summary>
+    public async Task InstallUpdate(IProgress<double> progress)
+    {
+        if (_runner.Running) return;
+        await Updater.DownloadAndRunAsync(progress);
+        Shutdown();
     }
 
     public void SetSessionMinutes(int m) { Settings.SessionMinutes = Math.Clamp(m, 0, 180); Settings.Save(); }

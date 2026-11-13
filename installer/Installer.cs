@@ -16,13 +16,28 @@ namespace EyeBreakSetup
     /// </summary>
     static class Installer
     {
-        public const string Version = "1.0.0";
+        public static readonly string Version = typeof(Installer).Assembly.GetName().Version.ToString(3);   // from Directory.Build.props
         const string Magic = "EYEBRK01";
         const string UninstallKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\EyeBreak";
         const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
 
         public static string DefaultDir =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "EyeBreak");
+
+        /// <summary>Where Eye Break is installed now, if it is (an update keeps it there).</summary>
+        public static string InstalledDir
+        {
+            get
+            {
+                using (var k = Registry.CurrentUser.OpenSubKey(UninstallKey))
+                    return (k?.GetValue("InstallLocation") as string)?.TrimEnd('\\');
+            }
+        }
+        public static bool HasDesktopShortcut => File.Exists(DesktopLink);
+        public static bool StartsWithWindows
+        {
+            get { using (var run = Registry.CurrentUser.OpenSubKey(RunKey)) return run?.GetValue("EyeBreak") != null; }
+        }
 
         static string SelfPath => Process.GetCurrentProcess().MainModule.FileName;
         static string StartMenuLink => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "Eye Break.lnk");

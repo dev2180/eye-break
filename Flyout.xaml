@@ -284,6 +284,9 @@
                 </StackPanel>
             </DockPanel>
 
+            <!-- Shown only when a newer version is on GitHub -->
+            <Button x:Name="UpdateBtn" Style="{StaticResource OutlineButton}" Margin="0,14,0,0" Visibility="Collapsed" Click="Update_Click"/>
+
             <!-- Ring: time until the next break -->
             <Grid Width="168" Height="168" Margin="0,12,0,0" HorizontalAlignment="Center">
                 <Ellipse Fill="#0A0907" Margin="10"/>
@@ -346,7 +349,7 @@
             <Border Height="1" Background="{StaticResource Line}" Margin="0,16,0,16"/>
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="40"/><RowDefinition Height="40"/><RowDefinition Height="38"/><RowDefinition Height="38"/>
+                    <RowDefinition Height="40"/><RowDefinition Height="40"/><RowDefinition Height="38"/><RowDefinition Height="38"/><RowDefinition Height="38"/>
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition/><ColumnDefinition Width="Auto"/>
@@ -371,6 +374,10 @@
 
                 <TextBlock Grid.Row="3" Text="Hide from screen sharing" Style="{StaticResource RowLabel}"/>
                 <CheckBox x:Name="HideSwitch" Grid.Row="3" Grid.Column="1" Style="{StaticResource Switch}" HorizontalAlignment="Right" VerticalAlignment="Center" Click="Hide_Click"/>
+
+                <TextBlock x:Name="VersionText" Grid.Row="4" Text="Version" Style="{StaticResource RowLabel}"/>
+                <Button x:Name="CheckBtn" Grid.Row="4" Grid.Column="1" Style="{StaticResource GhostButton}" Content="Check for updates"
+                        VerticalAlignment="Center" Margin="0,0,-8,0" Click="Check_Click"/>
             </Grid>
             </StackPanel>
 

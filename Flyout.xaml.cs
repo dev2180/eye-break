@@ -35,6 +35,40 @@ public partial class Flyout : Window
         Deactivated += (_, _) => Dispatcher.BeginInvoke(SafeClose);
         Closing += (_, _) => _closing = true;
         Closed += (_, _) => _timer.Stop();
+        ShowUpdate();
+        Updater.Changed += ShowUpdate;
+        Closed += (_, _) => Updater.Changed -= ShowUpdate;
+    }
+
+    void ShowUpdate()
+    {
+        VersionText.Text = $"Version {Updater.Current}";
+        if (Updater.Available is { } u && UpdateBtn.IsEnabled)
+        {
+            UpdateBtn.Content = $"Update to version {u.Version}";
+            UpdateBtn.Visibility = Visibility.Visible;
+        }
+        else if (Updater.Available == null) UpdateBtn.Visibility = Visibility.Collapsed;
+    }
+
+    async void Check_Click(object sender, RoutedEventArgs e)
+    {
+        CheckBtn.Content = "Checking…";
+        bool ok = await Updater.CheckAsync();
+        CheckBtn.Content = !ok ? "Couldn't reach GitHub" : Updater.Available != null ? "Update available ↑" : "Up to date ✓";
+    }
+
+    async void Update_Click(object sender, RoutedEventArgs e)
+    {
+        UpdateBtn.IsEnabled = false;
+        var progress = new Progress<double>(f => UpdateBtn.Content = $"Downloading update…  {f:P0}");
+        try { await _app.InstallUpdate(progress); }
+        catch (Exception ex)
+        {
+            GammaDimmer.Log("update download failed: " + ex.Message);
+            UpdateBtn.Content = "Download failed · click to retry";
+            UpdateBtn.IsEnabled = true;
+        }
     }
 
     bool _closing;

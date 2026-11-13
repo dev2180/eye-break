@@ -1,0 +1,6 @@
+<Project>
+  <!-- One version for the app and the installer. Bump it before building a release. -->
+  <PropertyGroup>
+    <Version>1.1.0</Version>
+  </PropertyGroup>
+</Project>
