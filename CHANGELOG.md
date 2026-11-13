@@ -5,6 +5,11 @@ All notable changes to Eye Break are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Microsoft Store package (MSIX), built with `build/build-msix.ps1`. The Store version starts with Windows through
+  its package, gets updates from the Store, and shares settings with the installer version.
+- Privacy policy.
+
 ### Changed
 - Repository reorganized: app in `src/EyeBreak`, installer in `src/EyeBreak.Setup`, build script in `build/`.
 - Added a license (MIT), contribution guide, issue templates, and CI that builds the installer on every push.

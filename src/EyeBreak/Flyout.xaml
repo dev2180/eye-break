@@ -371,6 +371,9 @@
 
                 <TextBlock Grid.Row="2" Text="Start with Windows" Style="{StaticResource RowLabel}"/>
                 <CheckBox x:Name="AutostartSwitch" Grid.Row="2" Grid.Column="1" Style="{StaticResource Switch}" HorizontalAlignment="Right" VerticalAlignment="Center" Click="Autostart_Click"/>
+                <Button x:Name="StartupManageBtn" Grid.Row="2" Grid.Column="1" Style="{StaticResource GhostButton}" Content="Manage ↗"
+                        VerticalAlignment="Center" Margin="0,0,-8,0" Visibility="Collapsed" Click="StartupManage_Click"
+                        ToolTip="Opens Windows Settings › Apps › Startup"/>
 
                 <TextBlock Grid.Row="3" Text="Hide from screen sharing" Style="{StaticResource RowLabel}"/>
                 <CheckBox x:Name="HideSwitch" Grid.Row="3" Grid.Column="1" Style="{StaticResource Switch}" HorizontalAlignment="Right" VerticalAlignment="Center" Click="Hide_Click"/>

@@ -31,6 +31,8 @@ public partial class App : Application
         // Build helper: write the app icon file and exit.
         int ico = Array.IndexOf(e.Args, "--write-icon");
         if (ico >= 0 && ico + 1 < e.Args.Length) { Logo.WriteIco(e.Args[ico + 1]); Shutdown(); return; }
+        int tiles = Array.IndexOf(e.Args, "--write-store-logos");
+        if (tiles >= 0 && tiles + 1 < e.Args.Length) { Logo.WriteStoreLogos(e.Args[tiles + 1]); Shutdown(); return; }
 
         _singleInstance = new Mutex(true, "EyeBreak.SingleInstance", out bool first);
         if (!first) { Shutdown(); return; }
@@ -69,9 +71,13 @@ public partial class App : Application
                 _tray?.ShowBalloonTip(8000, "Eye Break update", $"Version {u.Version} is ready. Open the Eye Break panel to update.", Forms.ToolTipIcon.Info);
             }
         };
-        _ = Updater.CheckAsync();
-        _updateTimer.Tick += (_, _) => _ = Updater.CheckAsync();
-        _updateTimer.Start();
+        GammaDimmer.Log($"started {Updater.Current}{(StoreApp.IsStore ? " (Microsoft Store)" : "")}");
+        if (!StoreApp.IsStore)   // the Store updates its copy itself
+        {
+            _ = Updater.CheckAsync();
+            _updateTimer.Tick += (_, _) => _ = Updater.CheckAsync();
+            _updateTimer.Start();
+        }
 
         if (e.Args.Contains("--show-panel"))
             Dispatcher.BeginInvoke(ToggleFlyout, DispatcherPriority.ApplicationIdle);

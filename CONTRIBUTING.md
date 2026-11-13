@@ -47,6 +47,13 @@ powershell -ExecutionPolicy Bypass -File build\build-installer.ps1
 - Add a line under **Unreleased** in [CHANGELOG.md](CHANGELOG.md).
 - CI builds the app and installer on every pull request; it needs to pass.
 
+Build the Microsoft Store package (needs the Windows SDK) with:
+
+```
+powershell -ExecutionPolicy Bypass -File build\build-msix.ps1            # dist\EyeBreak.msix, upload to Partner Center
+powershell -ExecutionPolicy Bypass -File build\build-msix.ps1 -Install   # also installs it locally (Developer Mode)
+```
+
 ## Releasing (maintainers)
 
 1. Set the new version in [Directory.Build.props](Directory.Build.props) and move the **Unreleased** notes in

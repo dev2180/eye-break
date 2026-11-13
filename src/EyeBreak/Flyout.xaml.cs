@@ -18,6 +18,13 @@ public partial class Flyout : Window
         _app = app;
         MaxHeight = SystemParameters.WorkArea.Height;   // never taller than the screen; the rest scrolls
         AutostartSwitch.IsChecked = Autostart.IsEnabled;
+        if (StoreApp.IsStore)
+        {
+            // The Store copy starts at login through its package; Windows Settings turns that on or off.
+            AutostartSwitch.Visibility = Visibility.Collapsed;
+            StartupManageBtn.Visibility = Visibility.Visible;
+            CheckBtn.Visibility = Visibility.Collapsed;
+        }
         HideSwitch.IsChecked = app.Settings.HideFromScreenShare;
         LinkBox.Text = app.Settings.CustomMusic;
         _loadingMusic = true;
@@ -42,7 +49,7 @@ public partial class Flyout : Window
 
     void ShowUpdate()
     {
-        VersionText.Text = $"Version {Updater.Current}";
+        VersionText.Text = StoreApp.IsStore ? $"Version {Updater.Current} · updates via Microsoft Store" : $"Version {Updater.Current}";
         if (Updater.Available is { } u && UpdateBtn.IsEnabled)
         {
             UpdateBtn.Content = $"Update to version {u.Version}";
@@ -190,6 +197,8 @@ public partial class Flyout : Window
     }
 
     void Autostart_Click(object sender, RoutedEventArgs e) => Autostart.Set(AutostartSwitch.IsChecked == true);
+    void StartupManage_Click(object sender, RoutedEventArgs e) =>
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("ms-settings:startupapps") { UseShellExecute = true });
     void Hide_Click(object sender, RoutedEventArgs e) => _app.SetHideFromShare(HideSwitch.IsChecked == true);
     void Report_Click(object sender, RoutedEventArgs e)
     {

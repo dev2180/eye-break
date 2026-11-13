@@ -70,6 +70,26 @@ public static class Logo
         return bmp;
     }
 
+    /// <summary>Writes the tile and Store images the MSIX package needs (build/build-msix.ps1 calls this).</summary>
+    public static void WriteStoreLogos(string dir)
+    {
+        Directory.CreateDirectory(dir);
+        void Square(string name, int size)
+        {
+            using var b = Render(size);
+            b.Save(Path.Combine(dir, name), Drawing.Imaging.ImageFormat.Png);
+        }
+        Square("Square44x44Logo.png", 44);
+        Square("Square44x44Logo.targetsize-256_altform-unplated.png", 256);
+        Square("Square150x150Logo.png", 150);
+        Square("StoreLogo.png", 50);
+        using var wide = new Drawing.Bitmap(310, 150);
+        using (var g = Drawing.Graphics.FromImage(wide))
+        using (var mark = Render(150))
+            g.DrawImage(mark, 80, 0, 150, 150);
+        wide.Save(Path.Combine(dir, "Wide310x150Logo.png"), Drawing.Imaging.ImageFormat.Png);
+    }
+
     /// <summary>Writes a multi-size .ico (16–256 px, PNG-compressed) for the app file.</summary>
     public static void WriteIco(string path)
     {
