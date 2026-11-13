@@ -1,0 +1,54 @@
+name: Release
+
+# Push a tag like v1.2.0 (matching Directory.Build.props) to build the installer and publish the release.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Check the tag matches the version
+        shell: pwsh
+        run: |
+          $version = ([xml](Get-Content Directory.Build.props)).Project.PropertyGroup.Version
+          if ("v$version" -ne $env:GITHUB_REF_NAME) { throw "Tag $env:GITHUB_REF_NAME doesn't match Directory.Build.props ($version)" }
+          "VERSION=$version" >> $env:GITHUB_ENV
+
+      - name: Build app and installer
+        shell: pwsh
+        run: ./build/build-installer.ps1
+
+      - name: Release notes from the changelog
+        shell: pwsh
+        run: |
+          $lines = Get-Content CHANGELOG.md
+          $start = [array]::FindIndex($lines, [Predicate[string]]{ param($l) $l -like "## ``[$env:VERSION``]*" })
+          if ($start -lt 0) { throw "CHANGELOG.md has no section for $env:VERSION" }
+          $end = [array]::FindIndex($lines, $start + 1, [Predicate[string]]{ param($l) $l -like '## *' -or $l -like '`[*`]: *' })
+          if ($end -lt 0) { $end = $lines.Count }
+          $notes = $lines[($start + 1)..($end - 1)] -join "`n"
+          $notes += "`n`n## Install`nDownload **EyeBreak-Setup.exe** below and run it. Already installed? Update from the Eye Break panel."
+          $notes | Set-Content notes.md
+
+      - name: Publish the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view $env:GITHUB_REF_NAME 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:GITHUB_REF_NAME dist/EyeBreak-Setup.exe --clobber
+          } else {
+            gh release create $env:GITHUB_REF_NAME dist/EyeBreak-Setup.exe --title "Eye Break $env:VERSION" --notes-file notes.md
+          }

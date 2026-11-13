@@ -1,6 +1,12 @@
+# Build output
 bin/
 obj/
+artifacts/
+dist/
+
+# IDE
 .vs/
+.vscode/
+.idea/
 *.user
 *.suo
-dist/

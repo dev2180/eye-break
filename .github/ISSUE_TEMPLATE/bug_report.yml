@@ -1,0 +1,44 @@
+name: Bug report
+description: Something isn't working right
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Tip: click **Report** in the Eye Break panel first — it marks the moment in the log and opens it.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: The last lines of `%APPDATA%\EyeBreak\log.txt` (the Report button opens it).
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: Eye Break version
+      description: Shown in the panel under Settings.
+      placeholder: "1.1.0"
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 24H2
+  - type: dropdown
+    id: when
+    attributes:
+      label: When does it happen?
+      options:
+        - During a regular break
+        - In infinite mode
+        - In the tray panel
+        - Installing, updating or uninstalling
+        - Other

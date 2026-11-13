@@ -11,14 +11,14 @@
     <LangVersion>latest</LangVersion>
     <AssemblyName>EyeBreakSetup</AssemblyName>
     <RootNamespace>EyeBreakSetup</RootNamespace>
-    <ApplicationIcon>..\Assets\eye.ico</ApplicationIcon>
+    <ApplicationIcon>..\EyeBreak\Assets\eye.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />
     <Reference Include="Microsoft.CSharp" />
-    <Resource Include="..\Assets\eye.ico" Link="eye.ico" />
+    <Resource Include="..\EyeBreak\Assets\eye.ico" Link="eye.ico" />
   </ItemGroup>
 
 </Project>

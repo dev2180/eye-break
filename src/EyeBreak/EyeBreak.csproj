@@ -25,17 +25,6 @@
   <ItemGroup>
     <!-- The ray-traced black hole journey, shown in an embedded browser view while the eyes are closed -->
     <Content Include="web\blackhole.html" CopyToOutputDirectory="PreserveNewest" />
-    <None Remove="preview\**" />
-    <Content Remove="preview\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <!-- The setup app is its own project (built by build-installer.ps1) -->
-    <Compile Remove="installer\**" />
-    <Page Remove="installer\**" />
-    <None Remove="installer\**;dist\**" />
-    <Content Remove="installer\**;dist\**" />
-    <Resource Remove="installer\**" />
   </ItemGroup>
 
 </Project>
