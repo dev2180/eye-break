@@ -7,7 +7,7 @@ All notable changes to Eye Break are listed here. The format follows
 
 ### Added
 - Microsoft Store package (MSIX), built with `build/build-msix.ps1`. The Store version starts with Windows through
-  its package, gets updates from the Store, and shares settings with the installer version.
+  its package and gets updates from the Store. Its settings and log stay in the package's private storage.
 - Privacy policy.
 
 ### Changed

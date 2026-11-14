@@ -10,6 +10,8 @@ explains what it does with your information. The short version: **it collects no
 - **Settings** (break interval, music choice, timer and so on) are saved in `%APPDATA%\EyeBreak\settings.json`.
 - **A log** of errors and events is saved in `%APPDATA%\EyeBreak\log.txt`. It is never uploaded. If you choose to
   share it in a bug report, that's up to you.
+- The Microsoft Store version keeps both in its own private app storage instead; the panel's **Report** button opens
+  the log either way.
 
 Eye Break has no accounts, no analytics, no advertising and no tracking.
 

@@ -54,9 +54,9 @@ eye strain, 20-20-20, break reminder, eye care, rest eyes, black hole, meditatio
 
 Paste this when Partner Center asks why the app uses restricted capabilities:
 
-> **runFullTrust:** Eye Break is a desktop (WPF) app. It shows full-screen overlays on every monitor during breaks, uses a low-level keyboard hook during a break so the Windows key and Alt+Tab can't pull other windows over it (typing still reaches the user's apps), and dims the display gamma when a game is in exclusive fullscreen. Breaks can always be skipped from the tray panel, and stopped early with Num Lock + numpad 8.
->
-> **unvirtualizedResources:** Eye Break keeps its settings and log in %APPDATA%\EyeBreak, shared with the standalone installer version, so users who switch versions keep their settings and the in-app Report button opens the real log.
+> **runFullTrust:** Eye Break is a desktop (WPF) app. It shows full-screen overlays on every monitor during breaks, uses a low-level keyboard hook during a break so the Windows key and Alt+Tab can't pull other windows over it (typing still reaches the user's apps), and dims the display gamma when a game is in exclusive fullscreen. Breaks can always be skipped from the tray panel, and stopped early with Num Lock + numpad 8. Website: https://github.com/dev2180/eye-break. Support: https://github.com/dev2180/eye-break/issues
+
+(An earlier submission also asked for `unvirtualizedResources`; it was declined and removed in the next package.)
 
 ## Age rating
 
