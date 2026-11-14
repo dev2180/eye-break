@@ -1,0 +1,56 @@
+
+name: Greetings
+
+on:
+  issues:
+    types: [opened]
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  greeting:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/first-interaction@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+          issue-message: |
+            Well, look who found a bug before the AI did.
+
+            Thanks for opening your first issue!
+
+            A few things that'll help me debug this:
+            - What were you trying to do?
+            - What actually happened?
+            - What did you expect to happen?
+            - Logs, screenshots or steps to reproduce (if available).
+
+            No need to write an essay. Just enough context to help me reproduce it.
+
+            I'll take a look. And yes, the bug is probably more interesting than the fix.
+
+            — Dev
+
+          pr-message: |
+            A new contributor? In this job market? Respect.
+
+            Thanks for the PR!
+
+            Before I review it, a few things:
+            - What does this change?
+            - Why is it needed?
+            - Have you tested it?
+            - Anything I should pay special attention to?
+
+            Small PRs are easier to review. Large PRs are also welcome, provided they don't come with a 47-page side quest.
+
+            I'll review the changes and get back to you.
+
+            And don't worry, your contribution won't be replaced by an AI agent. Probably.
+
+            — Dev
